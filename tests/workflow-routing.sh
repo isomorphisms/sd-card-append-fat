@@ -96,10 +96,13 @@ require "'tests/qemu-fallocate-full-consume-init'" "$repo/.github/workflows/qemu
 
 require "'tests/qemu-reserve-ahead.sh'" "$repo/.github/workflows/qemu-reserve-ahead.yml"
 require "'tests/qemu-reserve-ahead-init'" "$repo/.github/workflows/qemu-reserve-ahead.yml"
+require "'tests/qemu-reserve-ahead-mutations.sh'" "$repo/.github/workflows/qemu-reserve-ahead.yml"
 require "'tests/fallocate-keep-size.c'" "$repo/.github/workflows/qemu-reserve-ahead.yml"
 
 require "'tests/qemu-reserve-ahead-measurement.sh'" "$repo/.github/workflows/qemu-reserve-ahead-measurement.yml"
 require "'tests/qemu-reserve-ahead-measurement-init'" "$repo/.github/workflows/qemu-reserve-ahead-measurement.yml"
+require "'tests/qemu-reserve-ahead-measurement-parse.awk'" "$repo/.github/workflows/qemu-reserve-ahead-measurement.yml"
+require "'tests/qemu-reserve-ahead-measurement-parser.sh'" "$repo/.github/workflows/qemu-reserve-ahead-measurement.yml"
 require "'tests/fallocate-keep-size.c'" "$repo/.github/workflows/qemu-reserve-ahead-measurement.yml"
 
 require "'tests/qemu-fat-matrix.sh'" "$repo/.github/workflows/qemu-fat-matrix.yml"

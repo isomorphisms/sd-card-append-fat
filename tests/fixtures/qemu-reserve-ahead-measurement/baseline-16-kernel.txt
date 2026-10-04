@@ -1,0 +1,50 @@
+[    1.000000] APPENDFAT_MEASURE_BEGIN run_id=baseline-captured variant=baseline policy_clusters=1
+[    1.000001] APPENDFAT_APPEND_METRIC reserve_start requested_clusters=1
+[    1.000002] APPENDFAT_ALLOC_METRIC alloc requested=1 allocated=1 fat_updates=1 fat_buffers=1 mirror_buffers=1 fsinfo_dirty_calls=1 result=0
+[    1.000003] APPENDFAT_ALLOC_METRIC attach clusters=1 tail_link=0 fat_buffers=0 mirror_buffers=0
+[    1.000004] APPENDFAT_APPEND_METRIC reserve_start requested_clusters=1
+[    1.000005] APPENDFAT_ALLOC_METRIC alloc requested=1 allocated=1 fat_updates=1 fat_buffers=1 mirror_buffers=1 fsinfo_dirty_calls=1 result=0
+[    1.000006] APPENDFAT_ALLOC_METRIC attach clusters=1 tail_link=1 fat_buffers=1 mirror_buffers=1
+[    1.000007] APPENDFAT_APPEND_METRIC reserve_start requested_clusters=1
+[    1.000008] APPENDFAT_ALLOC_METRIC alloc requested=1 allocated=1 fat_updates=1 fat_buffers=1 mirror_buffers=1 fsinfo_dirty_calls=1 result=0
+[    1.000009] APPENDFAT_ALLOC_METRIC attach clusters=1 tail_link=1 fat_buffers=1 mirror_buffers=1
+[    1.000010] APPENDFAT_APPEND_METRIC reserve_start requested_clusters=1
+[    1.000011] APPENDFAT_ALLOC_METRIC alloc requested=1 allocated=1 fat_updates=1 fat_buffers=1 mirror_buffers=1 fsinfo_dirty_calls=1 result=0
+[    1.000012] APPENDFAT_ALLOC_METRIC attach clusters=1 tail_link=1 fat_buffers=1 mirror_buffers=1
+[    1.000013] APPENDFAT_APPEND_METRIC reserve_start requested_clusters=1
+[    1.000014] APPENDFAT_ALLOC_METRIC alloc requested=1 allocated=1 fat_updates=1 fat_buffers=1 mirror_buffers=1 fsinfo_dirty_calls=1 result=0
+[    1.000015] APPENDFAT_ALLOC_METRIC attach clusters=1 tail_link=1 fat_buffers=1 mirror_buffers=1
+[    1.000016] APPENDFAT_APPEND_METRIC reserve_start requested_clusters=1
+[    1.000017] APPENDFAT_ALLOC_METRIC alloc requested=1 allocated=1 fat_updates=1 fat_buffers=1 mirror_buffers=1 fsinfo_dirty_calls=1 result=0
+[    1.000018] APPENDFAT_ALLOC_METRIC attach clusters=1 tail_link=1 fat_buffers=1 mirror_buffers=1
+[    1.000019] APPENDFAT_APPEND_METRIC reserve_start requested_clusters=1
+[    1.000020] APPENDFAT_ALLOC_METRIC alloc requested=1 allocated=1 fat_updates=1 fat_buffers=1 mirror_buffers=1 fsinfo_dirty_calls=1 result=0
+[    1.000021] APPENDFAT_ALLOC_METRIC attach clusters=1 tail_link=1 fat_buffers=1 mirror_buffers=1
+[    1.000022] APPENDFAT_APPEND_METRIC reserve_start requested_clusters=1
+[    1.000023] APPENDFAT_ALLOC_METRIC alloc requested=1 allocated=1 fat_updates=1 fat_buffers=1 mirror_buffers=1 fsinfo_dirty_calls=1 result=0
+[    1.000024] APPENDFAT_ALLOC_METRIC attach clusters=1 tail_link=1 fat_buffers=1 mirror_buffers=1
+[    1.000025] APPENDFAT_APPEND_METRIC reserve_start requested_clusters=1
+[    1.000026] APPENDFAT_ALLOC_METRIC alloc requested=1 allocated=1 fat_updates=1 fat_buffers=1 mirror_buffers=1 fsinfo_dirty_calls=1 result=0
+[    1.000027] APPENDFAT_ALLOC_METRIC attach clusters=1 tail_link=1 fat_buffers=1 mirror_buffers=1
+[    1.000028] APPENDFAT_APPEND_METRIC reserve_start requested_clusters=1
+[    1.000029] APPENDFAT_ALLOC_METRIC alloc requested=1 allocated=1 fat_updates=1 fat_buffers=1 mirror_buffers=1 fsinfo_dirty_calls=1 result=0
+[    1.000030] APPENDFAT_ALLOC_METRIC attach clusters=1 tail_link=1 fat_buffers=1 mirror_buffers=1
+[    1.000031] APPENDFAT_APPEND_METRIC reserve_start requested_clusters=1
+[    1.000032] APPENDFAT_ALLOC_METRIC alloc requested=1 allocated=1 fat_updates=1 fat_buffers=1 mirror_buffers=1 fsinfo_dirty_calls=1 result=0
+[    1.000033] APPENDFAT_ALLOC_METRIC attach clusters=1 tail_link=1 fat_buffers=1 mirror_buffers=1
+[    1.000034] APPENDFAT_APPEND_METRIC reserve_start requested_clusters=1
+[    1.000035] APPENDFAT_ALLOC_METRIC alloc requested=1 allocated=1 fat_updates=1 fat_buffers=1 mirror_buffers=1 fsinfo_dirty_calls=1 result=0
+[    1.000036] APPENDFAT_ALLOC_METRIC attach clusters=1 tail_link=1 fat_buffers=1 mirror_buffers=1
+[    1.000037] APPENDFAT_APPEND_METRIC reserve_start requested_clusters=1
+[    1.000038] APPENDFAT_ALLOC_METRIC alloc requested=1 allocated=1 fat_updates=1 fat_buffers=1 mirror_buffers=1 fsinfo_dirty_calls=1 result=0
+[    1.000039] APPENDFAT_ALLOC_METRIC attach clusters=1 tail_link=1 fat_buffers=1 mirror_buffers=1
+[    1.000040] APPENDFAT_APPEND_METRIC reserve_start requested_clusters=1
+[    1.000041] APPENDFAT_ALLOC_METRIC alloc requested=1 allocated=1 fat_updates=1 fat_buffers=1 mirror_buffers=1 fsinfo_dirty_calls=1 result=0
+[    1.000042] APPENDFAT_ALLOC_METRIC attach clusters=1 tail_link=1 fat_buffers=1 mirror_buffers=1
+[    1.000043] APPENDFAT_APPEND_METRIC reserve_start requested_clusters=1
+[    1.000044] APPENDFAT_ALLOC_METRIC alloc requested=1 allocated=1 fat_updates=1 fat_buffers=1 mirror_buffers=1 fsinfo_dirty_calls=1 result=0
+[    1.000045] APPENDFAT_ALLOC_METRIC attach clusters=1 tail_link=1 fat_buffers=1 mirror_buffers=1
+[    1.000046] APPENDFAT_APPEND_METRIC reserve_start requested_clusters=1
+[    1.000047] APPENDFAT_ALLOC_METRIC alloc requested=1 allocated=1 fat_updates=1 fat_buffers=1 mirror_buffers=1 fsinfo_dirty_calls=1 result=0
+[    1.000048] APPENDFAT_ALLOC_METRIC attach clusters=1 tail_link=1 fat_buffers=1 mirror_buffers=1
+[    1.000049] APPENDFAT_MEASURE_END run_id=baseline-captured

@@ -10,6 +10,7 @@ on:
       - 'tests/qemu-common.sh'
       - 'tests/qemu-reserve-ahead.sh'
       - 'tests/qemu-reserve-ahead-init'
+      - 'tests/qemu-reserve-ahead-mutations.sh'
       - 'tests/fallocate-keep-size.c'
       - '.github/workflows/qemu-reserve-ahead.yml'
   pull_request:
@@ -19,6 +20,7 @@ on:
       - 'tests/qemu-common.sh'
       - 'tests/qemu-reserve-ahead.sh'
       - 'tests/qemu-reserve-ahead-init'
+      - 'tests/qemu-reserve-ahead-mutations.sh'
       - 'tests/fallocate-keep-size.c'
       - '.github/workflows/qemu-reserve-ahead.yml'
 
@@ -41,10 +43,21 @@ jobs:
           path: linux
           fetch-depth: 1
 
+      - name: Check out pinned Linux source for the mutation test
+        uses: actions/checkout@v4
+        with:
+          repository: torvalds/linux
+          ref: 238650ef6c7c7cca08e032527329424c9fbd70e5
+          path: linux-reserve-ahead-mutant
+          fetch-depth: 1
+
       - name: Install build and VM dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential bc bison flex libssl-dev libelf-dev qemu-system-x86 busybox-static dosfstools cpio
+          sudo apt-get install -y build-essential bc bison flex libssl-dev libelf-dev qemu-system-x86 busybox-static dosfstools cpio mtools
 
       - name: Exercise automatic reserve-ahead
         run: sh tests/qemu-reserve-ahead.sh linux
+
+      - name: Reject disabled reserve-ahead
+        run: sh tests/qemu-reserve-ahead-mutations.sh linux-reserve-ahead-mutant

@@ -8,13 +8,41 @@ mount -t sysfs sysfs /sys
 mount -t devtmpfs devtmpfs /dev
 mkdir -p /mnt/card
 
+run_id=
+variant=
+policy_clusters=
+for argument in $(cat /proc/cmdline)
+do
+    case "$argument" in
+        appendfat_measure_run_id=*)
+            run_id=${argument#appendfat_measure_run_id=}
+            ;;
+        appendfat_measure_variant=*)
+            variant=${argument#appendfat_measure_variant=}
+            ;;
+        appendfat_measure_policy_clusters=*)
+            policy_clusters=${argument#appendfat_measure_policy_clusters=}
+            ;;
+    esac
+done
+
+[ -n "$run_id" ]
+[ -n "$variant" ]
+[ -n "$policy_clusters" ]
+
 mount -t appendfat /dev/vda /mnt/card
-/bin/appendfat-fixture append-measure /mnt/card/workload.bin 64 97 90
+printf '<6>APPENDFAT_MEASURE_BEGIN run_id=%s variant=%s policy_clusters=%s\n' \
+    "$run_id" "$variant" "$policy_clusters" > /dev/kmsg
+/bin/appendfat-fixture append-measure /mnt/card/workload.bin 64 97 90 \
+    /mnt/card/AFWORKLD.TXT "$run_id" "$variant" "$policy_clusters"
+sync
+dmesg > /mnt/card/AFKERNL.TXT
 sync
 umount /mnt/card
 
 mount -t vfat /dev/vda /mnt/card
 /bin/appendfat-fixture minimal-blocks /mnt/card/workload.bin
+/bin/appendfat-fixture check-fill /mnt/card/workload.bin 32768 90
 sync
 umount /mnt/card
 

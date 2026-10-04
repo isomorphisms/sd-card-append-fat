@@ -10,6 +10,9 @@ on:
       - 'tests/qemu-common.sh'
       - 'tests/qemu-reserve-ahead-measurement.sh'
       - 'tests/qemu-reserve-ahead-measurement-init'
+      - 'tests/qemu-reserve-ahead-measurement-parse.awk'
+      - 'tests/qemu-reserve-ahead-measurement-parser.sh'
+      - 'tests/fixtures/qemu-reserve-ahead-measurement/**'
       - 'tests/fallocate-keep-size.c'
       - '.github/workflows/qemu-reserve-ahead-measurement.yml'
   pull_request:
@@ -19,6 +22,9 @@ on:
       - 'tests/qemu-common.sh'
       - 'tests/qemu-reserve-ahead-measurement.sh'
       - 'tests/qemu-reserve-ahead-measurement-init'
+      - 'tests/qemu-reserve-ahead-measurement-parse.awk'
+      - 'tests/qemu-reserve-ahead-measurement-parser.sh'
+      - 'tests/fixtures/qemu-reserve-ahead-measurement/**'
       - 'tests/fallocate-keep-size.c'
       - '.github/workflows/qemu-reserve-ahead-measurement.yml'
 
@@ -52,7 +58,7 @@ jobs:
       - name: Install build and VM dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential bc bison flex libssl-dev libelf-dev qemu-system-x86 busybox-static dosfstools cpio
+          sudo apt-get install -y build-essential bc bison flex libssl-dev libelf-dev qemu-system-x86 busybox-static dosfstools cpio mtools
 
       - name: Compare one-cluster growth with reserve-ahead
         run: sh tests/qemu-reserve-ahead-measurement.sh linux-baseline linux-ahead

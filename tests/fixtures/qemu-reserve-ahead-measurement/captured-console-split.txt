@@ -1,0 +1,5 @@
+# Captured shape of the failed console stream: a kernel line bisected the
+# userspace workload record, so the old parser invented zero-valued fields.
+APPENDFAT_APPEND_WORKLOAD size=32768 blocks=64 cluster_bytes=512 vda_write_ops=
+[    2.001100] APPENDFAT_ALLOC_METRIC alloc requested=1 allocated=1 fat_updates=1 fat_buffers=1 mirror_buffers=1 fsinfo_dirty_calls=1 result=0
+17 vda_write_sectors=68

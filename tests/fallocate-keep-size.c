@@ -315,6 +315,118 @@ static void write_bytes_fd(int fd,
     }
 }
 
+static void write_all(int fd, const char *buffer, size_t count,
+                      const char *label)
+{
+    size_t offset = 0;
+
+    while (offset < count) {
+        ssize_t written = write(fd, buffer + offset, count - offset);
+
+        if (written < 0) {
+            perror(label);
+            exit(1);
+        }
+        if (written == 0) {
+            fprintf(stderr, "zero-length write for %s\n", label);
+            exit(1);
+        }
+        offset += (size_t)written;
+    }
+}
+
+static void require_measurement_token(const char *value, const char *label)
+{
+    const unsigned char *cursor = (const unsigned char *)value;
+
+    if (*cursor == '\0') {
+        fprintf(stderr, "empty measurement %s\n", label);
+        exit(2);
+    }
+    for (; *cursor != '\0'; cursor++) {
+        if (!((*cursor >= 'a' && *cursor <= 'z') ||
+              (*cursor >= 'A' && *cursor <= 'Z') ||
+              (*cursor >= '0' && *cursor <= '9') ||
+              *cursor == '-' || *cursor == '_')) {
+            fprintf(stderr, "invalid measurement %s: %s\n", label, value);
+            exit(2);
+        }
+    }
+}
+
+static void write_measurement_end(const char *run_id)
+{
+    int fd;
+    int length;
+    char record[160];
+
+    fd = open("/dev/kmsg", O_WRONLY | O_CLOEXEC);
+    if (fd < 0) {
+        perror("open /dev/kmsg measurement end");
+        exit(1);
+    }
+    length = snprintf(record, sizeof(record),
+                      "<6>APPENDFAT_MEASURE_END run_id=%s\n", run_id);
+    if (length < 0 || (size_t)length >= sizeof(record)) {
+        fprintf(stderr, "measurement end record overflow\n");
+        exit(1);
+    }
+    write_all(fd, record, (size_t)length, "write /dev/kmsg measurement end");
+    if (close(fd) != 0) {
+        perror("close /dev/kmsg measurement end");
+        exit(1);
+    }
+}
+
+static void write_measurement_receipt(const char *receipt_path,
+                                      const char *run_id,
+                                      const char *variant,
+                                      unsigned long long policy_clusters,
+                                      unsigned long long target_clusters,
+                                      unsigned long long cluster_bytes,
+                                      unsigned long long chunk_bytes,
+                                      unsigned char content_byte,
+                                      const struct stat *result,
+                                      unsigned long long write_ops,
+                                      unsigned long long write_sectors)
+{
+    char record[1024];
+    int fd;
+    int length;
+
+    fd = open(receipt_path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+    if (fd < 0) {
+        perror(receipt_path);
+        exit(1);
+    }
+    length = snprintf(record, sizeof(record),
+                      "APPENDFAT_APPEND_RECEIPT format=v1 run_id=%s "
+                      "variant=%s policy_clusters=%llu target_clusters=%llu "
+                      "cluster_bytes=%llu chunk_bytes=%llu target_bytes=%llu "
+                      "logical_size=%" PRIuMAX " logical_blocks=%" PRIuMAX " "
+                      "content_byte=%u vda_write_ops=%llu "
+                      "vda_write_sectors=%llu\n",
+                      run_id, variant, policy_clusters, target_clusters,
+                      cluster_bytes, chunk_bytes,
+                      target_clusters * cluster_bytes,
+                      (uintmax_t)result->st_size,
+                      (uintmax_t)result->st_blocks,
+                      (unsigned int)content_byte, write_ops, write_sectors);
+    if (length < 0 || (size_t)length >= sizeof(record)) {
+        fprintf(stderr, "measurement receipt overflow\n");
+        exit(1);
+    }
+    write_all(fd, record, (size_t)length, "write measurement receipt");
+    if (fsync(fd) != 0) {
+        perror("fsync measurement receipt");
+        exit(1);
+    }
+    if (close(fd) != 0) {
+        perror("close measurement receipt");
+        exit(1);
+    }
+}
+
 static unsigned long long fd_cluster_bytes(int fd)
 {
     struct statvfs fs;
@@ -526,7 +638,10 @@ static void fill_leave_clusters(const char *path,
 {
     unsigned char buffer[65536];
     unsigned long long cluster_bytes;
-    unsigned long long leave_bytes;
+    unsigned long long free_clusters;
+    unsigned long long release_clusters;
+    unsigned long long release_bytes;
+    struct statvfs fs;
     struct stat st;
     off_t target_size;
     int fd;
@@ -542,7 +657,6 @@ static void fill_leave_clusters(const char *path,
         fprintf(stderr, "invalid fill-leave geometry\n");
         exit(2);
     }
-    leave_bytes = cluster_bytes * leave_clusters;
     memset(buffer, 0x5a, sizeof(buffer));
 
     for (;;) {
@@ -564,8 +678,7 @@ static void fill_leave_clusters(const char *path,
         perror("fstat filled file");
         exit(1);
     }
-    if ((unsigned long long)st.st_size < leave_bytes ||
-        (unsigned long long)st.st_size % cluster_bytes != 0) {
+    if ((unsigned long long)st.st_size % cluster_bytes != 0) {
         fprintf(stderr,
                 "filled size is not compatible with requested cluster geometry: "
                 "size=%" PRIuMAX " cluster_bytes=%llu leave_clusters=%llu\n",
@@ -573,7 +686,26 @@ static void fill_leave_clusters(const char *path,
         exit(1);
     }
 
-    target_size = st.st_size - (off_t)leave_bytes;
+    if (fstatvfs(fd, &fs) != 0) {
+        perror("fstatvfs filled file");
+        exit(1);
+    }
+    free_clusters = (unsigned long long)fs.f_bfree;
+    if (free_clusters > leave_clusters) {
+        fprintf(stderr,
+                "stock vfat stopped filling with too much space left: "
+                "free_clusters=%llu leave_clusters=%llu\n",
+                free_clusters, leave_clusters);
+        exit(1);
+    }
+    release_clusters = leave_clusters - free_clusters;
+    if (release_clusters > (unsigned long long)INT64_MAX / cluster_bytes ||
+        (unsigned long long)st.st_size < release_clusters * cluster_bytes) {
+        fprintf(stderr, "invalid fill-leave release geometry\n");
+        exit(1);
+    }
+    release_bytes = release_clusters * cluster_bytes;
+    target_size = st.st_size - (off_t)release_bytes;
     if (ftruncate(fd, target_size) != 0) {
         perror("ftruncate filled file");
         exit(1);
@@ -582,15 +714,26 @@ static void fill_leave_clusters(const char *path,
         perror("fsync filled file");
         exit(1);
     }
+    if (fstatvfs(fd, &fs) != 0) {
+        perror("fstatvfs shrunk file");
+        exit(1);
+    }
+    if ((unsigned long long)fs.f_bfree != leave_clusters) {
+        fprintf(stderr,
+                "fill-leave free-cluster mismatch: expected=%llu actual=%lu\n",
+                leave_clusters, (unsigned long)fs.f_bfree);
+        exit(1);
+    }
     if (close(fd) != 0) {
         perror("close filled file");
         exit(1);
     }
 
     printf("fill_leave path=%s full_size=%" PRIuMAX
-           " final_size=%" PRIuMAX " leave_clusters=%llu cluster_bytes=%llu\n",
+           " final_size=%" PRIuMAX " initial_free_clusters=%llu"
+           " leave_clusters=%llu cluster_bytes=%llu\n",
            path, (uintmax_t)st.st_size, (uintmax_t)target_size,
-           leave_clusters, cluster_bytes);
+           free_clusters, leave_clusters, cluster_bytes);
 }
 
 static void require_minimal_allocation(const char *path)
@@ -639,7 +782,11 @@ static void require_minimal_allocation(const char *path)
 static void append_measure_workload(const char *path,
                                     unsigned long long target_clusters,
                                     unsigned long long chunk_bytes,
-                                    unsigned char value)
+                                    unsigned char value,
+                                    const char *receipt_path,
+                                    const char *run_id,
+                                    const char *variant,
+                                    unsigned long long policy_clusters)
 {
     unsigned char buffer[4096];
     struct stat st;
@@ -650,11 +797,13 @@ static void append_measure_workload(const char *path,
     unsigned long long sectors_before, sectors_after;
     int fd;
 
-    if (target_clusters == 0 || chunk_bytes == 0 ||
+    if (target_clusters == 0 || policy_clusters == 0 || chunk_bytes == 0 ||
         chunk_bytes > sizeof(buffer)) {
         fprintf(stderr, "invalid append measurement workload\n");
         exit(2);
     }
+    require_measurement_token(run_id, "run id");
+    require_measurement_token(variant, "variant");
 
     fd = open(path, O_CREAT | O_TRUNC | O_WRONLY, 0666);
     if (fd < 0) {
@@ -673,10 +822,6 @@ static void append_measure_workload(const char *path,
 
     sync();
     read_vda_write_stats(&writes_before, &sectors_before);
-    printf("APPENDFAT_APPEND_MEASURE_BEGIN clusters=%llu cluster_bytes=%llu "
-           "chunk_bytes=%llu target_bytes=%llu\n",
-           target_clusters, cluster_bytes, chunk_bytes, target_bytes);
-    fflush(stdout);
 
     while (left > 0) {
         size_t amount = left < chunk_bytes ? (size_t)left : (size_t)chunk_bytes;
@@ -710,18 +855,16 @@ static void append_measure_workload(const char *path,
         exit(1);
     }
 
-    printf("APPENDFAT_APPEND_WORKLOAD size=%" PRIuMAX
-           " blocks=%" PRIuMAX " cluster_bytes=%llu"
-           " vda_write_ops=%llu vda_write_sectors=%llu\n",
-           (uintmax_t)st.st_size, (uintmax_t)st.st_blocks, cluster_bytes,
-           writes_after - writes_before, sectors_after - sectors_before);
-    printf("APPENDFAT_APPEND_MEASURE_END\n");
-    fflush(stdout);
-
     if (close(fd) != 0) {
         perror("close append measurement");
         exit(1);
     }
+    /* End the kernel-log interval before receipt creation changes the FAT. */
+    write_measurement_end(run_id);
+    write_measurement_receipt(receipt_path, run_id, variant, policy_clusters,
+                              target_clusters, cluster_bytes, chunk_bytes,
+                              value, &st, writes_after - writes_before,
+                              sectors_after - sectors_before);
 }
 
 static void check_file(const char *path,
@@ -788,6 +931,50 @@ static void check_file(const char *path,
            path, expected_size, (uintmax_t)st.st_blocks);
 }
 
+static void check_fill_file(const char *path,
+                            unsigned long long expected_size,
+                            unsigned char expected_value)
+{
+    unsigned char buffer[4096];
+    unsigned long long read_total = 0;
+    int fd = open_existing(path, O_RDONLY);
+
+    while (read_total < expected_size) {
+        size_t wanted = expected_size - read_total < sizeof(buffer) ?
+                        (size_t)(expected_size - read_total) : sizeof(buffer);
+        ssize_t received = read(fd, buffer, wanted);
+        size_t index;
+
+        if (received < 0) {
+            perror("read check-fill");
+            exit(1);
+        }
+        if (received == 0) {
+            fprintf(stderr, "short read in check-fill\n");
+            exit(1);
+        }
+        for (index = 0; index < (size_t)received; index++) {
+            if (buffer[index] != expected_value) {
+                fprintf(stderr,
+                        "content mismatch for %s at byte %llu: expected %u got %u\n",
+                        path, read_total + index,
+                        (unsigned int)expected_value,
+                        (unsigned int)buffer[index]);
+                exit(1);
+            }
+        }
+        read_total += (unsigned long long)received;
+    }
+    if (read(fd, buffer, 1) != 0) {
+        fprintf(stderr, "unexpected trailing content in %s\n", path);
+        exit(1);
+    }
+    if (close(fd) != 0) {
+        perror("close check-fill");
+        exit(1);
+    }
+}
+
 static void check_reserve_ahead_result(const char *path)
 {
     unsigned long long cluster_bytes;
@@ -840,7 +1027,7 @@ int main(int argc, char **argv)
 			"reserve|reserve-clusters|extend-clusters|append|"
 			"reserve-ahead-sequence|reserve-ahead-truncate|reserve-ahead-unlink|"
 			"reserve-ahead-near-full|check-reserve-ahead|check-near-full|"
-			"fill-leave-clusters|append-measure|minimal-blocks|check|blocks ...\n",
+			"fill-leave-clusters|append-measure|check-fill|minimal-blocks|check|blocks ...\n",
                 argv[0]);
         return 2;
     }
@@ -1054,9 +1241,9 @@ int main(int argc, char **argv)
     if (strcmp(command, "append-measure") == 0) {
         unsigned long long value;
 
-        if (argc != 6) {
+        if (argc != 10) {
             fprintf(stderr,
-                    "usage: %s append-measure PATH CLUSTERS CHUNK_BYTES BYTE\n",
+                    "usage: %s append-measure PATH CLUSTERS CHUNK_BYTES BYTE RECEIPT RUN_ID VARIANT POLICY_CLUSTERS\n",
                     argv[0]);
             return 2;
         }
@@ -1066,7 +1253,26 @@ int main(int argc, char **argv)
             return 2;
         }
         append_measure_workload(argv[2], parse_number(argv[3]),
-                                parse_number(argv[4]), (unsigned char)value);
+                                parse_number(argv[4]), (unsigned char)value,
+                                argv[6], argv[7], argv[8],
+                                parse_number(argv[9]));
+        return 0;
+    }
+
+    if (strcmp(command, "check-fill") == 0) {
+        unsigned long long value;
+
+        if (argc != 5) {
+            fprintf(stderr, "usage: %s check-fill PATH SIZE BYTE\n", argv[0]);
+            return 2;
+        }
+        value = parse_number(argv[4]);
+        if (value > 255) {
+            fprintf(stderr, "byte value out of range: %llu\n", value);
+            return 2;
+        }
+        check_fill_file(argv[2], parse_number(argv[3]),
+                        (unsigned char)value);
         return 0;
     }
 
