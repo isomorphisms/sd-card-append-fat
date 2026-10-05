@@ -22,6 +22,9 @@ appendfat_prepare_linux()
     if [ "${APPENDFAT_ALLOC_METRICS:-0}" = 1 ]; then
         export KCFLAGS="${KCFLAGS:+$KCFLAGS }-DAPPENDFAT_ALLOC_METRICS"
     fi
+    if [ "${APPENDFAT_RESERVATION_METRICS:-0}" = 1 ]; then
+        export KCFLAGS="${KCFLAGS:+$KCFLAGS }-DAPPENDFAT_RESERVATION_METRICS"
+    fi
     if [ -n "${APPENDFAT_APPEND_AHEAD_CLUSTERS:-}" ]; then
         case "$APPENDFAT_APPEND_AHEAD_CLUSTERS" in
             *[!0-9]*|'')

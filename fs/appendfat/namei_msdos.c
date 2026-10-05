@@ -314,6 +314,7 @@ static int msdos_rmdir(struct inode *dir, struct dentry *dentry)
 	struct super_block *sb = dir->i_sb;
 	struct inode *inode = d_inode(dentry);
 	struct fat_slot_info sinfo;
+	bool release_reservation = false;
 	int err;
 
 	mutex_lock(&MSDOS_SB(sb)->s_lock);
@@ -335,9 +336,12 @@ static int msdos_rmdir(struct inode *dir, struct dentry *dentry)
 	}
 
 	clear_nlink(inode);
+	release_reservation = true;
 	appendfat_detach(inode);
 out:
 	mutex_unlock(&MSDOS_SB(sb)->s_lock);
+	if (!err && release_reservation)
+		appendfat_reservation_release(inode);
 	if (!err)
 		err = appendfat_flush_inodes(sb, dir, inode);
 
@@ -410,6 +414,7 @@ static int msdos_unlink(struct inode *dir, struct dentry *dentry)
 	struct inode *inode = d_inode(dentry);
 	struct super_block *sb = inode->i_sb;
 	struct fat_slot_info sinfo;
+	bool release_reservation = false;
 	int err;
 
 	mutex_lock(&MSDOS_SB(sb)->s_lock);
@@ -421,9 +426,12 @@ static int msdos_unlink(struct inode *dir, struct dentry *dentry)
 	if (err)
 		goto out;
 	clear_nlink(inode);
+	release_reservation = true;
 	appendfat_detach(inode);
 out:
 	mutex_unlock(&MSDOS_SB(sb)->s_lock);
+	if (!err && release_reservation)
+		appendfat_reservation_release(inode);
 	if (!err)
 		err = appendfat_flush_inodes(sb, dir, inode);
 
@@ -433,7 +441,8 @@ out:
 static int do_msdos_rename(struct inode *old_dir, unsigned char *old_name,
 			   struct dentry *old_dentry,
 			   struct inode *new_dir, unsigned char *new_name,
-			   struct dentry *new_dentry, int is_hid)
+			   struct dentry *new_dentry, int is_hid,
+			   bool *release_reservation)
 {
 	struct buffer_head *dotdot_bh;
 	struct msdos_dir_entry *dotdot_de;
@@ -554,6 +563,7 @@ static int do_msdos_rename(struct inode *old_dir, unsigned char *old_name,
 		drop_nlink(new_inode);
 		if (is_dir)
 			drop_nlink(new_inode);
+		*release_reservation = !new_inode->i_nlink;
 	}
 out:
 	brelse(sinfo.bh);
@@ -607,6 +617,8 @@ static int msdos_rename(struct mnt_idmap *idmap,
 {
 	struct super_block *sb = old_dir->i_sb;
 	unsigned char old_msdos_name[MSDOS_NAME], new_msdos_name[MSDOS_NAME];
+	struct inode *new_inode = d_inode(new_dentry);
+	bool release_reservation = false;
 	int err, is_hid;
 
 	if (flags & ~RENAME_NOREPLACE)
@@ -629,9 +641,12 @@ static int msdos_rename(struct mnt_idmap *idmap,
 	     (new_dentry->d_name.name[0] == '.') && (new_msdos_name[0] != '.');
 
 	err = do_msdos_rename(old_dir, old_msdos_name, old_dentry,
-			      new_dir, new_msdos_name, new_dentry, is_hid);
+			      new_dir, new_msdos_name, new_dentry, is_hid,
+			      &release_reservation);
 out:
 	mutex_unlock(&MSDOS_SB(sb)->s_lock);
+	if (!err && release_reservation)
+		appendfat_reservation_release(new_inode);
 	if (!err)
 		err = appendfat_flush_inodes(sb, old_dir, new_dir);
 	return err;
@@ -695,7 +710,7 @@ static int msdos_init_fs_context(struct fs_context *fc)
 static struct file_system_type msdos_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "appendmsdos",
-	.kill_sb	= kill_block_super,
+	.kill_sb	= appendfat_kill_sb,
 	.fs_flags	= FS_REQUIRES_DEV | FS_ALLOW_IDMAP,
 	.init_fs_context = msdos_init_fs_context,
 	.parameters	= appendfat_param_spec,

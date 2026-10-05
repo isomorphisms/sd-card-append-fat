@@ -9,11 +9,23 @@ mount -t devtmpfs devtmpfs /dev
 mkdir -p /mnt/card
 mount -t appendfat /dev/vda /mnt/card
 
+# Keep the reserve-ahead mutation gate's first assertion unchanged.
+/bin/appendfat-fixture reserve-ahead-sequence /mnt/card/ahead.bin
+
+# A mount-session reservation survives ordinary descriptor closure because its
+# superblock owner holds exactly one inode reference.  These helpers also
+# prove that explicit KEEP_SIZE and automatic append capacity share the same
+# owner and that rename/exchange do not detach it from the inode.
+/bin/appendfat-fixture reservation-auto-close-reopen /mnt/card/session-auto.bin
+/bin/appendfat-fixture reservation-keep-size-append /mnt/card/session-mixed.bin
+/bin/appendfat-fixture reservation-o-trunc /mnt/card/session-trunc.bin
+/bin/appendfat-fixture reservation-rename /mnt/card/session-rename-old.bin /mnt/card/session-rename-new.bin
+/bin/appendfat-fixture reservation-exchange /mnt/card/session-exchange-a.bin /mnt/card/session-exchange-b.bin
+
 # Normal reserve-ahead behavior: one four-cluster allocator batch.  The
 # fixture derives cluster size from stat rather than assuming 512-byte clusters.
 # Each sequence keeps one file descriptor open so inode eviction cannot erase
 # the live reservation between assertions.
-/bin/appendfat-fixture reserve-ahead-sequence /mnt/card/ahead.bin
 /bin/appendfat-fixture reserve-ahead-truncate /mnt/card/truncate.bin
 /bin/appendfat-fixture reserve-ahead-unlink /mnt/card/unlink.bin
 
@@ -23,6 +35,12 @@ umount /mnt/card
 mount -t vfat /dev/vda /mnt/card
 /bin/appendfat-fixture check-reserve-ahead /mnt/card/ahead.bin
 /bin/appendfat-fixture minimal-blocks /mnt/card/ahead.bin
+/bin/appendfat-fixture minimal-blocks /mnt/card/session-auto.bin
+/bin/appendfat-fixture minimal-blocks /mnt/card/session-mixed.bin
+/bin/appendfat-fixture minimal-blocks /mnt/card/session-trunc.bin
+/bin/appendfat-fixture minimal-blocks /mnt/card/session-rename-new.bin
+/bin/appendfat-fixture minimal-blocks /mnt/card/session-exchange-a.bin
+/bin/appendfat-fixture minimal-blocks /mnt/card/session-exchange-b.bin
 /bin/appendfat-fixture check /mnt/card/truncate.bin 100 T 84
 /bin/appendfat-fixture minimal-blocks /mnt/card/truncate.bin
 if [ -e /mnt/card/unlink.bin ]; then

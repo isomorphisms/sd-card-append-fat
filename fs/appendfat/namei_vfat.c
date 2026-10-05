@@ -789,6 +789,7 @@ static int vfat_rmdir(struct inode *dir, struct dentry *dentry)
 	struct inode *inode = d_inode(dentry);
 	struct super_block *sb = dir->i_sb;
 	struct fat_slot_info sinfo;
+	bool release_reservation = false;
 	int err;
 
 	mutex_lock(&MSDOS_SB(sb)->s_lock);
@@ -811,11 +812,14 @@ static int vfat_rmdir(struct inode *dir, struct dentry *dentry)
 	}
 
 	clear_nlink(inode);
+	release_reservation = true;
 	appendfat_truncate_time(inode, NULL, FAT_UPDATE_ATIME | FAT_UPDATE_CMTIME);
 	appendfat_detach(inode);
 	vfat_d_version_set(dentry, inode_query_iversion(dir));
 out:
 	mutex_unlock(&MSDOS_SB(sb)->s_lock);
+	if (!err && release_reservation)
+		appendfat_reservation_release(inode);
 
 	return err;
 }
@@ -825,6 +829,7 @@ static int vfat_unlink(struct inode *dir, struct dentry *dentry)
 	struct inode *inode = d_inode(dentry);
 	struct super_block *sb = dir->i_sb;
 	struct fat_slot_info sinfo;
+	bool release_reservation = false;
 	int err;
 
 	mutex_lock(&MSDOS_SB(sb)->s_lock);
@@ -837,11 +842,14 @@ static int vfat_unlink(struct inode *dir, struct dentry *dentry)
 	if (err)
 		goto out;
 	clear_nlink(inode);
+	release_reservation = true;
 	appendfat_truncate_time(inode, NULL, FAT_UPDATE_ATIME | FAT_UPDATE_CMTIME);
 	appendfat_detach(inode);
 	vfat_d_version_set(dentry, inode_query_iversion(dir));
 out:
 	mutex_unlock(&MSDOS_SB(sb)->s_lock);
+	if (!err && release_reservation)
+		appendfat_reservation_release(inode);
 
 	return err;
 }
@@ -939,6 +947,7 @@ static int vfat_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct timespec64 ts;
 	loff_t new_i_pos;
 	int err, is_dir, corrupt = 0;
+	bool release_reservation = false;
 	struct super_block *sb = old_dir->i_sb;
 
 	old_sinfo.bh = sinfo.bh = dotdot_bh = NULL;
@@ -1000,12 +1009,15 @@ static int vfat_rename(struct inode *old_dir, struct dentry *old_dentry,
 		drop_nlink(new_inode);
 		if (is_dir)
 			drop_nlink(new_inode);
+		release_reservation = !new_inode->i_nlink;
 	}
 out:
 	brelse(sinfo.bh);
 	brelse(dotdot_bh);
 	brelse(old_sinfo.bh);
 	mutex_unlock(&MSDOS_SB(sb)->s_lock);
+	if (!err && release_reservation)
+		appendfat_reservation_release(new_inode);
 
 	return err;
 
@@ -1236,7 +1248,7 @@ static int vfat_init_fs_context(struct fs_context *fc)
 static struct file_system_type vfat_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "appendfat",
-	.kill_sb	= kill_block_super,
+	.kill_sb	= appendfat_kill_sb,
 	.fs_flags	= FS_REQUIRES_DEV | FS_ALLOW_IDMAP,
 	.init_fs_context = vfat_init_fs_context,
 	.parameters     = appendfat_param_spec,
