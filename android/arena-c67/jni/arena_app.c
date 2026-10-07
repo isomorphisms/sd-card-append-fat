@@ -1,31 +1,31 @@
 #define _GNU_SOURCE
 #define _FILE_OFFSET_BITS 64
 
+#include "../../../lib/appendfat_arena.h"
+
 #include <android/log.h>
 #include <android/native_activity.h>
 #include <android/native_window.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <inttypes.h>
 #include <jni.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <unistd.h>
 
-#define main appendfat_arena_cli_main
-#include "../../../tools/appendfat_arena.c"
-#undef main
+#ifndef TARGET_ABI
+#define TARGET_ABI "unknown"
+#endif
 
 #define LOG_TAG "appendfat-arena"
-#define ARENA_CAPACITY 4194304
-#define PAYLOAD_BYTES 98317
+#define ARENA_CAPACITY 4194304U
+#define PAYLOAD_BYTES 98317U
 
-static int test_passed = 0;
+static int test_passed;
 static char result_text[1024];
 
-static void cleanup(const char *arena, const char *payload)
+static void cleanup(const char *arena)
 {
     char path[1024];
 
@@ -34,149 +34,121 @@ static void cleanup(const char *arena, const char *payload)
     unlink(path);
     snprintf(path, sizeof(path), "%s.lock", arena);
     unlink(path);
-    unlink(payload);
 }
 
-static int write_payload(const char *path)
+static int verify_zero_tail(const char *path)
 {
-    unsigned char buffer[4096];
-    size_t written = 0;
-    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+    unsigned char zeroes[64];
+    int fd = open(path, O_RDONLY | O_CLOEXEC);
+    ssize_t count;
+    size_t i;
 
     if (fd < 0)
         return -1;
-
-    while (written < PAYLOAD_BYTES) {
-        size_t count = PAYLOAD_BYTES - written;
-        size_t i;
-
-        if (count > sizeof(buffer))
-            count = sizeof(buffer);
-        for (i = 0; i < count; ++i)
-            buffer[i] = (unsigned char)((written + i + 37U) % 251U);
-
-        if (write_all(fd, buffer, count) != 0) {
-            int saved = errno;
-            close(fd);
-            errno = saved;
-            return -1;
-        }
-        written += count;
-    }
-
-    if (fsync(fd) != 0) {
-        int saved = errno;
+    do {
+        count = pread(fd, zeroes, sizeof(zeroes), PAYLOAD_BYTES);
+    } while (count < 0 && errno == EINTR);
+    if (count != (ssize_t)sizeof(zeroes)) {
         close(fd);
-        errno = saved;
+        errno = EIO;
         return -1;
     }
-    return close(fd);
-}
-
-static int verify_payload(const char *arena)
-{
-    unsigned char buffer[4096];
-    size_t checked = 0;
-    int fd = open(arena, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
-
-    if (fd < 0)
-        return -1;
-
-    while (checked < PAYLOAD_BYTES) {
-        size_t count = PAYLOAD_BYTES - checked;
-        size_t i;
-        ssize_t got;
-
-        if (count > sizeof(buffer))
-            count = sizeof(buffer);
-        do {
-            got = pread(fd, buffer, count, (off_t)checked);
-        } while (got < 0 && errno == EINTR);
-
-        if (got != (ssize_t)count) {
+    for (i = 0; i < sizeof(zeroes); ++i) {
+        if (zeroes[i] != 0) {
             close(fd);
-            errno = EIO;
+            errno = EILSEQ;
             return -1;
         }
-        for (i = 0; i < count; ++i) {
-            unsigned char expected =
-                (unsigned char)((checked + i + 37U) % 251U);
-            if (buffer[i] != expected) {
-                close(fd);
-                errno = EILSEQ;
-                return -1;
-            }
-        }
-        checked += count;
     }
-
-    {
-        unsigned char zeroes[64];
-        ssize_t got = pread(fd, zeroes, sizeof(zeroes), PAYLOAD_BYTES);
-        size_t i;
-
-        if (got != (ssize_t)sizeof(zeroes)) {
-            close(fd);
-            errno = EIO;
-            return -1;
-        }
-        for (i = 0; i < sizeof(zeroes); ++i) {
-            if (zeroes[i] != 0) {
-                close(fd);
-                errno = EILSEQ;
-                return -1;
-            }
-        }
-    }
-
     return close(fd);
 }
 
 static int run_test(const char *private_dir)
 {
-    char arena[1024];
-    char used_path[1024];
-    char payload[1024];
-    struct stat st;
-    off_t used = -1;
+    char path[1024];
+    appendfat_arena arena;
+    unsigned char write_buffer[4096];
+    unsigned char read_buffer[4096];
+    size_t written = 0;
 
-    if (snprintf(arena, sizeof(arena), "%s/cache.arena", private_dir) >=
-            (int)sizeof(arena) ||
-        snprintf(used_path, sizeof(used_path), "%s/cache.arena.used",
-                 private_dir) >= (int)sizeof(used_path) ||
-        snprintf(payload, sizeof(payload), "%s/payload.bin", private_dir) >=
-            (int)sizeof(payload)) {
+    if (snprintf(path, sizeof(path), "%s/cache.arena", private_dir) >=
+        (int)sizeof(path)) {
         errno = ENAMETOOLONG;
         return -1;
     }
+    cleanup(path);
 
-    cleanup(arena, payload);
+    if (appendfat_arena_create(path, ARENA_CAPACITY) != 0)
+        return -1;
+    if (appendfat_arena_open(&arena, path, 1) != 0)
+        return -1;
 
-    if (command_create(arena, "4194304") != 0)
+    while (written < PAYLOAD_BYTES) {
+        size_t amount = PAYLOAD_BYTES - written;
+        size_t i;
+
+        if (amount > sizeof(write_buffer))
+            amount = sizeof(write_buffer);
+        for (i = 0; i < amount; ++i)
+            write_buffer[i] =
+                (unsigned char)((written + i + 37U) % 251U);
+        if (appendfat_arena_append(&arena, write_buffer, amount) != 0) {
+            appendfat_arena_close(&arena);
+            return -1;
+        }
+        written += amount;
+    }
+    if (appendfat_arena_committed(&arena) != 0 ||
+        appendfat_arena_cursor(&arena) != PAYLOAD_BYTES ||
+        appendfat_arena_commit(&arena) != 0) {
+        appendfat_arena_close(&arena);
         return -1;
-    if (write_payload(payload) != 0)
+    }
+    appendfat_arena_close(&arena);
+
+    /* Reopen proves the sidecar commit, not just the in-memory cursor. */
+    if (appendfat_arena_open(&arena, path, 0) != 0)
         return -1;
-    if (command_append(arena, payload) != 0)
-        return -1;
-    if (read_used(used_path, &used) != 0)
-        return -1;
-    if (used != PAYLOAD_BYTES) {
+    if (appendfat_arena_capacity(&arena) != ARENA_CAPACITY ||
+        appendfat_arena_committed(&arena) != PAYLOAD_BYTES) {
+        appendfat_arena_close(&arena);
         errno = EINVAL;
         return -1;
     }
-    if (stat(arena, &st) != 0 || st.st_size != ARENA_CAPACITY) {
-        errno = EINVAL;
-        return -1;
+
+    written = 0;
+    while (written < PAYLOAD_BYTES) {
+        size_t amount = 0;
+        size_t i;
+
+        if (appendfat_arena_read(&arena, written, read_buffer,
+                                 sizeof(read_buffer), &amount) != 0 ||
+            amount == 0) {
+            appendfat_arena_close(&arena);
+            return -1;
+        }
+        for (i = 0; i < amount; ++i) {
+            unsigned char expected =
+                (unsigned char)((written + i + 37U) % 251U);
+            if (read_buffer[i] != expected) {
+                appendfat_arena_close(&arena);
+                errno = EILSEQ;
+                return -1;
+            }
+        }
+        written += amount;
     }
-    if (verify_payload(arena) != 0)
+    appendfat_arena_close(&arena);
+
+    if (verify_zero_tail(path) != 0)
         return -1;
 
     snprintf(result_text, sizeof(result_text),
-             "PASS: C67 app-private arena\n"
-             "capacity=%d bytes\nused=%d bytes\n"
-             "verified=create + append + fsync + atomic .used + reopen + bytes\n"
+             "PASS: app-private arena (%s)\n"
+             "capacity=%u bytes\nused=%u bytes\n"
+             "verified=library create + append + commit + reopen + bytes\n"
              "No storage permission; no raw device; no mount/format.",
-             ARENA_CAPACITY, PAYLOAD_BYTES);
+             TARGET_ABI, ARENA_CAPACITY, PAYLOAD_BYTES);
     return 0;
 }
 
@@ -232,7 +204,6 @@ static void paint_window(ANativeActivity *activity, ANativeWindow *window)
     ANativeWindow_setBuffersGeometry(window, 0, 0, WINDOW_FORMAT_RGBA_8888);
     if (ANativeWindow_lock(window, &buffer, NULL) != 0)
         return;
-
     for (y = 0; y < buffer.height; ++y) {
         uint32_t *row = (uint32_t *)((char *)buffer.bits +
                                      (size_t)y * (size_t)buffer.stride * 4U);
@@ -252,18 +223,16 @@ JNIEXPORT void ANativeActivity_onCreate(ANativeActivity *activity,
     (void)saved_state_size;
 
     activity->callbacks->onNativeWindowCreated = paint_window;
-
     if (run_test(activity->internalDataPath) == 0) {
         test_passed = 1;
         __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "%s", result_text);
     } else {
         saved_errno = errno;
         snprintf(result_text, sizeof(result_text),
-                 "FAIL: C67 arena sandbox errno=%d (%s). "
+                 "FAIL: arena sandbox (%s) errno=%d (%s). "
                  "No writes attempted outside app-private storage.",
-                 saved_errno, strerror(saved_errno));
+                 TARGET_ABI, saved_errno, strerror(saved_errno));
         __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "%s", result_text);
     }
-
     show_toast(activity, result_text);
 }
