@@ -193,7 +193,7 @@ static void show_toast(ANativeActivity *activity, const char *text)
     if ((*activity->vm)->GetEnv(activity->vm, (void **)&env,
                                JNI_VERSION_1_6) != JNI_OK) {
         if ((*activity->vm)->AttachCurrentThread(activity->vm,
-                                                  (void **)&env, NULL) != JNI_OK)
+                                                  &env, NULL) != JNI_OK)
             return;
         attached = 1;
     }
