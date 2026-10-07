@@ -12,7 +12,18 @@ ndk_version=27.2.12479018
 rm -rf "$build"
 mkdir -p "$build/ziproot/lib/arm64-v8a"
 
-sdkmanager "platforms;android-34" "build-tools;35.0.0" "ndk;27.2.12479018" >/dev/null
+if [ -x "$sdk/cmdline-tools/latest/bin/sdkmanager" ]; then
+    sdkmanager_cmd="$sdk/cmdline-tools/latest/bin/sdkmanager"
+elif [ -x "$sdk/tools/bin/sdkmanager" ]; then
+    sdkmanager_cmd="$sdk/tools/bin/sdkmanager"
+else
+    sdkmanager_cmd=$(find "$sdk/cmdline-tools" -type f -name sdkmanager 2>/dev/null | head -1)
+fi
+[ -n "$sdkmanager_cmd" ] || {
+    printf '%s\n' 'sdkmanager not found under ANDROID_SDK_ROOT' >&2
+    exit 1
+}
+"$sdkmanager_cmd" "platforms;android-34" "build-tools;35.0.0" "ndk;27.2.12479018" >/dev/null
 
 platform="$sdk/platforms/android-$platform_api/android.jar"
 bt="$sdk/build-tools/$build_tools"
