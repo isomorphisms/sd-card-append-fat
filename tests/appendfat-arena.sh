@@ -7,8 +7,19 @@ trap 'rm -rf "$work"' EXIT HUP INT TERM
 
 ${CC:-cc} \
     -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror \
+    -I"$root/lib" \
+    "$root/lib/appendfat_arena.c" \
     "$root/tools/appendfat_arena.c" \
     -o "$work/appendfat_arena"
+
+${CC:-cc} \
+    -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror \
+    -I"$root/lib" \
+    "$root/lib/appendfat_arena.c" \
+    "$root/tests/appendfat-arena-library.c" \
+    -o "$work/appendfat_arena_library"
+
+"$work/appendfat_arena_library" "$work/library.arena"
 
 arena="$work/cache.arena"
 
