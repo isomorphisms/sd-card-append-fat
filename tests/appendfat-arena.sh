@@ -5,10 +5,21 @@ root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT HUP INT TERM
 
-${CC:-cc} \
+"${ICK:?Set ICK to the qualified native compiler}" ${ICK_FLAGS:--fno-link-libatomic} \
     -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror \
+    -I"$root/lib" \
+    "$root/lib/appendfat_arena.c" \
     "$root/tools/appendfat_arena.c" \
     -o "$work/appendfat_arena"
+
+"${ICK:?Set ICK to the qualified native compiler}" ${ICK_FLAGS:--fno-link-libatomic} \
+    -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror \
+    -I"$root/lib" \
+    "$root/lib/appendfat_arena.c" \
+    "$root/tests/appendfat-arena-library.c" \
+    -o "$work/appendfat_arena_library"
+
+"$work/appendfat_arena_library" "$work/library.arena"
 
 arena="$work/cache.arena"
 

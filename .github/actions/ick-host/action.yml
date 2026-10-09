@@ -1,0 +1,23 @@
+name: appendfat userspace C producer
+description: Qualify the pinned compiler and shared C-stage contract
+outputs:
+  compiler:
+    description: Qualified native ICK driver
+    value: ${{ steps.ick.outputs.compiler }}
+runs:
+  using: composite
+  steps:
+    - id: ick
+      uses: isomorphisms/ai-ci/ick-host@015cc7901ae0b3ad262b476f24e129b53c56db95
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        repository: isomorphisms/ai-ci
+        ref: 015cc7901ae0b3ad262b476f24e129b53c56db95
+        path: .aici-host
+        sparse-checkout: |
+          src/aici.c
+          contracts/build-toolchain-v0.contract.tsv
+        persist-credentials: false
+    - name: Verify the declared C stages
+      shell: bash
+      run: make -f ci/Makefile verify ICK="${{ steps.ick.outputs.compiler }}"

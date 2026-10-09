@@ -65,12 +65,12 @@ assert_no_source_quarantine()
 
 build()
 {
-    ${CC:-cc} \
+    "${ICK:?Set ICK to the qualified native compiler}" ${ICK_FLAGS:--fno-link-libatomic} \
         -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror \
         "$source_under_test" \
         -o "$binary"
 
-    ${CC:-cc} \
+    "${ICK:?Set ICK to the qualified native compiler}" ${ICK_FLAGS:--fno-link-libatomic} \
         -std=c11 -O2 -Wall -Wextra -Werror -fPIC -shared \
         "$root/tests/appendfat-mv-faults.c" \
         -ldl \

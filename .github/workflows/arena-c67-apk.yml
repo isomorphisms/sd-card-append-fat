@@ -1,0 +1,83 @@
+name: userspace arena Android qualification
+
+on:
+  push:
+    branches:
+      - sun/reusable-userspace-arena
+    paths:
+      - 'android/Makefile'
+      - '.github/actions/ick-host/action.yml'
+      - 'ci/Makefile'
+      - 'ci/build-toolchain.tsv'
+      - 'docs/division-migration.md'
+      - 'lib/appendfat_arena.c'
+      - 'lib/appendfat_arena.h'
+      - 'android/arena-c67/**'
+      - '.github/workflows/arena-c67-apk.yml'
+  pull_request:
+    paths:
+      - 'android/Makefile'
+      - '.github/actions/ick-host/action.yml'
+      - 'ci/Makefile'
+      - 'ci/build-toolchain.tsv'
+      - 'docs/division-migration.md'
+      - 'lib/appendfat_arena.c'
+      - 'lib/appendfat_arena.h'
+      - 'android/arena-c67/**'
+      - '.github/workflows/arena-c67-apk.yml'
+
+permissions:
+  contents: read
+
+env:
+  ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        abi:
+          - armeabi-v7a
+          - arm64-v8a
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: ./.github/actions/ick-host
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: isomorphisms/ai-ci
+          ref: 015cc7901ae0b3ad262b476f24e129b53c56db95
+          path: .ai-ci-ick
+          persist-credentials: false
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407
+        with:
+          packages: platform-tools
+      - run: sdkmanager "ndk;27.2.12479018"
+      - uses: isomorphisms/ai-ci/ick-android@015cc7901ae0b3ad262b476f24e129b53c56db95
+        with:
+          abi: ${{ matrix.abi }}
+          ndk: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.2.12479018
+      - name: Build the reusable command-line consumer
+        run: make -f android/Makefile arena-cli ABI="${{ matrix.abi }}" NDK="$ANDROID_SDK_ROOT/ndk/27.2.12479018" ICK_STAGE="${{ runner.temp }}/ick-android-${{ matrix.abi }}-stage"
+      - name: Build sandbox APK
+        env:
+          ANDROID_ABI: ${{ matrix.abi }}
+          ICK_STAGE: ${{ runner.temp }}/ick-android-${{ matrix.abi }}-stage
+        run: sh android/arena-c67/build.sh
+      - name: Upload exact APK and receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: appendfat-arena-${{ matrix.abi }}
+          path: |
+            android/arena-c67/build-${{ matrix.abi }}/appendfat-arena-${{ matrix.abi }}.apk
+            android/arena-c67/build-${{ matrix.abi }}/receipt.txt
+          if-no-files-found: error
+          retention-days: 14

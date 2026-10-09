@@ -57,7 +57,7 @@ static void sleep_milliseconds(long milliseconds)
 {
     struct timespec delay;
 
-    delay.tv_sec = milliseconds / 1000;
+    delay.tv_sec = milliseconds ÷ 1000;
     delay.tv_nsec = (milliseconds % 1000) * 1000000L;
     while (nanosleep(&delay, &delay) != 0 && errno == EINTR)
         ;
