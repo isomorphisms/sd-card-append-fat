@@ -25,14 +25,18 @@ arena: validate-app
 
 arena-cli: OUTPUT = $(BUILD)/appendfat_arena
 arena-cli: validate-app
-	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(APP_C_FLAGS) -Wpedantic -fPIE -I"$(ROOT)/lib" -S "$(ROOT)/lib/appendfat_arena.c" -o "$(BUILD)/arena-cli-lib.s"
-	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(APP_C_FLAGS) -Wpedantic -fPIE -I"$(ROOT)/lib" -S "$(ROOT)/tools/appendfat_arena.c" -o "$(BUILD)/arena-cli.s"
+	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(APP_C_FLAGS) -Wpedantic -fPIC -I"$(ROOT)/lib" -S "$(ROOT)/lib/appendfat_arena.c" -o "$(BUILD)/arena-cli-lib.s"
+	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(APP_C_FLAGS) -Wpedantic -fPIC -I"$(ROOT)/lib" -S "$(ROOT)/tools/appendfat_arena.c" -o "$(BUILD)/arena-cli.s"
 	"$(APP_NDK_CC)" $(TARGET_FLAGS) -fPIE -c "$(BUILD)/arena-cli-lib.s" -o "$(BUILD)/arena-cli-lib.o"
 	"$(APP_NDK_CC)" $(TARGET_FLAGS) -fPIE -c "$(BUILD)/arena-cli.s" -o "$(BUILD)/arena-cli.o"
 	"$(APP_NDK_CC)" -pie "$(BUILD)/arena-cli-lib.o" "$(BUILD)/arena-cli.o" -o "$(OUTPUT)"
+	"$(NDK_READELF)" -r "$(OUTPUT)" > "$(OUTPUT).relocations.txt"
+	! grep -E 'R_[A-Z0-9_]*_COPY([[:space:]]|$$)' "$(OUTPUT).relocations.txt"
 
 mv: OUTPUT = $(BUILD)/appendfat_mv
 mv: validate-app
-	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(APP_C_FLAGS) -Wpedantic -mthumb -march=armv7-a -fPIE -S "$(ROOT)/tools/appendfat_mv.c" -o "$(BUILD)/mv.s"
+	"$(ICK_COMPILER)" $(ICK_EXTRA_FLAGS) $(APP_C_FLAGS) -Wpedantic -mthumb -march=armv7-a -fPIC -S "$(ROOT)/tools/appendfat_mv.c" -o "$(BUILD)/mv.s"
 	"$(APP_NDK_CC)" -mthumb -march=armv7-a -fPIE -c "$(BUILD)/mv.s" -o "$(BUILD)/mv.o"
 	"$(APP_NDK_CC)" -pie "$(BUILD)/mv.o" -o "$(OUTPUT)"
+	"$(NDK_READELF)" -r "$(OUTPUT)" > "$(OUTPUT).relocations.txt"
+	! grep -E 'R_[A-Z0-9_]*_COPY([[:space:]]|$$)' "$(OUTPUT).relocations.txt"
