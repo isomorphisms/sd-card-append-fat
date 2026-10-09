@@ -30,14 +30,11 @@ If keep-size fallocate is unsupported or returns `ENOSPC`, the move fails before
 
 ## Android ARMv7 / Thumb-2 build
 
-On the target 32-bit Android/Termux phone, build natively with:
-
-```sh
-clang \
-    -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror \
-    -mthumb -march=armv7-a -fPIE -pie \
-    tools/appendfat_mv.c -o appendfat_mv
-```
+Build off-device with the `mv` target in `android/Makefile`, supplying
+`ABI=armeabi-v7a`, `ANDROID_API=24`, `NDK`, `ICK_STAGE` and `AICI_ROOT`.
+It compiles through the pinned ICK frontend and preserves the ARMv7/Thumb-2
+PIE profile. The output is `build/android-armeabi-v7a/appendfat_mv`.
+See [division-migration.md](division-migration.md) for exact source pins.
 
 The source defines `_FILE_OFFSET_BITS=64`, so the allocation and copy length are not limited to 2 GiB by the 32-bit userspace ABI. The `fallocate()` libc wrapper is used rather than issuing the ARM syscall directly, leaving bionic to handle the ARM EABI argument convention for the 64-bit offset and length.
 
@@ -129,7 +126,7 @@ On the currently observed Android/FUSE removable-storage path, the expected rese
 
 ## Host safety and fault coverage
 
-`tests/appendfat-mv.sh` exercises both GCC and Clang in CI and covers:
+`tests/appendfat-mv.sh` exercises the qualified ICK compiler in CI and covers:
 
 - strict compilation;
 - argument errors and `--` handling;

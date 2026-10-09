@@ -18,20 +18,19 @@ cache.arena.lock  stable advisory-lock inode
 
 ## Build
 
-A normal Linux host build is:
+A Linux host build requires `ICK` pointing at the qualified native compiler:
 
 ```sh
-cc -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror \
-    tools/appendfat_arena.c -o appendfat_arena
+"$ICK" -fno-link-libatomic -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror \
+    -Ilib lib/appendfat_arena.c tools/appendfat_arena.c -o appendfat_arena
 ```
 
-On the 32-bit Android/Termux ARMv7 target:
-
-```sh
-clang -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror \
-    -mthumb -march=armv7-a -fPIE -pie \
-    tools/appendfat_arena.c -o appendfat_arena
-```
+For the Android/Termux ARMv7 consumer, build off-device through the
+`arena-cli` target in `android/Makefile`, supplying `ABI=armeabi-v7a`,
+`NDK`, `ICK_STAGE` and `AICI_ROOT`. The target produces
+`build/android-armeabi-v7a/appendfat_arena`. The default API floor is 26.
+The exact compiler and source-stage requirements are in
+[division-migration.md](division-migration.md).
 
 The source uses `_FILE_OFFSET_BITS=64`.
 

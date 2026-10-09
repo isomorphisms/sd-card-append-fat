@@ -5,6 +5,11 @@ on:
     branches:
       - main
     paths:
+      - 'android/Makefile'
+      - '.github/actions/ick-host/action.yml'
+      - 'ci/Makefile'
+      - 'ci/build-toolchain.tsv'
+      - 'docs/division-migration.md'
       - 'tools/appendfat_mv.c'
       - 'tests/appendfat-mv.sh'
       - 'tests/appendfat-mv-faults.c'
@@ -18,6 +23,11 @@ on:
       - '.github/workflows/appendfat-mv.yml'
   pull_request:
     paths:
+      - 'android/Makefile'
+      - '.github/actions/ick-host/action.yml'
+      - 'ci/Makefile'
+      - 'ci/build-toolchain.tsv'
+      - 'docs/division-migration.md'
       - 'tools/appendfat_mv.c'
       - 'tests/appendfat-mv.sh'
       - 'tests/appendfat-mv-faults.c'
@@ -39,21 +49,19 @@ permissions:
 
 jobs:
   host-test:
-    name: host safety tests (${{ matrix.compiler }})
+    name: host safety tests (ICK)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        compiler:
-          - gcc
-          - clang
     steps:
       - name: Check out appendfat repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - id: ick
+        uses: ./.github/actions/ick-host
 
       - name: Build and exercise appendfat_mv
         env:
-          CC: ${{ matrix.compiler }}
+          ICK: ${{ steps.ick.outputs.compiler }}
         run: sh tests/appendfat-mv.sh
 
   mutation-test:
@@ -62,26 +70,43 @@ jobs:
     steps:
       - name: Check out appendfat repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - id: ick
+        uses: ./.github/actions/ick-host
 
       - name: Prove the safety suite rejects known-bad movers
+        env:
+          ICK: ${{ steps.ick.outputs.compiler }}
         run: sh tests/appendfat-mv-mutations.sh
 
   armv7-android-compile:
     name: Android ARMv7 / Thumb-2 compile
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     steps:
       - name: Check out appendfat repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: isomorphisms/ai-ci
+          ref: 015cc7901ae0b3ad262b476f24e129b53c56db95
+          path: .ai-ci-ick
+          persist-credentials: false
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407
+        with:
+          packages: platform-tools
+      - run: sdkmanager "ndk;27.2.12479018"
+      - uses: isomorphisms/ai-ci/ick-android@015cc7901ae0b3ad262b476f24e129b53c56db95
+        with:
+          abi: armeabi-v7a
+          ndk: ${{ env.ANDROID_HOME }}/ndk/27.2.12479018
 
       - name: Compile for Android API 24 ARMv7
         run: |
-          compiler="$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang"
-          test -x "$compiler"
-          "$compiler" \
-            -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror \
-            -mthumb -march=armv7-a -fPIE -pie \
-            tools/appendfat_mv.c \
-            -o /tmp/appendfat_mv-armv7
+          make -f android/Makefile mv ABI=armeabi-v7a ANDROID_API=24 NDK="$ANDROID_HOME/ndk/27.2.12479018" ICK_STAGE="${{ runner.temp }}/ick-android-armeabi-v7a-stage" OUTPUT=/tmp/appendfat_mv-armv7
           file /tmp/appendfat_mv-armv7
 
   physical-script-static-check:

@@ -21,13 +21,14 @@
 #define LOG_TAG "appendfat-arena"
 #define ARENA_CAPACITY 4194304U
 #define PAYLOAD_BYTES 98317U
+#define ARENA_PATH_CAPACITY 1024
 
 static int test_passed;
 static char result_text[1024];
 
 static void cleanup(const char *arena)
 {
-    char path[1024];
+    char path[ARENA_PATH_CAPACITY + sizeof(".lock")];
 
     unlink(arena);
     snprintf(path, sizeof(path), "%s.used", arena);
@@ -65,7 +66,7 @@ static int verify_zero_tail(const char *path)
 
 static int run_test(const char *private_dir)
 {
-    char path[1024];
+    char path[ARENA_PATH_CAPACITY];
     appendfat_arena arena;
     unsigned char write_buffer[4096];
     unsigned char read_buffer[4096];

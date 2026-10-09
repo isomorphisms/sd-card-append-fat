@@ -21,7 +21,7 @@ pass()
 compile_mutant()
 {
     mutant=$1
-    ${CC:-cc} \
+    "${ICK:?Set ICK to the qualified native compiler}" ${ICK_FLAGS:--fno-link-libatomic} \
         -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror \
         "$mutant" \
         -o "$work/mutant-binary"

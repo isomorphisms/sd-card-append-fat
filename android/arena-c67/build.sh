@@ -11,11 +11,7 @@ ndk_version=27.2.12479018
 build="$app/build-$abi"
 
 case "$abi" in
-    arm64-v8a)
-        triple=aarch64-linux-android26
-        ;;
-    armeabi-v7a)
-        triple=armv7a-linux-androideabi26
+    arm64-v8a|armeabi-v7a)
         ;;
     *)
         printf '%s\n' "unsupported ANDROID_ABI: $abi" >&2
@@ -42,15 +38,9 @@ fi
 platform="$sdk/platforms/android-$platform_api/android.jar"
 bt="$sdk/build-tools/$build_tools"
 ndk="$sdk/ndk/$ndk_version"
-cc="$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/$triple-clang"
-
-"$cc" -std=c11 -O2 -fPIC -shared -Wall -Wextra -Werror \
-    -I"$repo/lib" \
-    -DTARGET_ABI="\"$abi\"" \
-    "$repo/lib/appendfat_arena.c" \
-    "$app/jni/arena_app.c" \
-    -o "$build/ziproot/lib/$abi/libappendfat_arena_app.so" \
-    -landroid -llog
+make -f "$repo/android/Makefile" arena ABI="$abi" NDK="$ndk" \
+    ICK_STAGE="${ICK_STAGE:?Set ICK_STAGE to the qualified frontend}" \
+    OUTPUT="$build/ziproot/lib/$abi/libappendfat_arena_app.so"
 
 "$bt/aapt2" link \
     -I "$platform" \

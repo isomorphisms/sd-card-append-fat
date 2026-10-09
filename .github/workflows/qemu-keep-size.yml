@@ -5,6 +5,10 @@ on:
     branches:
       - main
     paths:
+      - '.github/actions/ick-host/action.yml'
+      - 'ci/Makefile'
+      - 'ci/build-toolchain.tsv'
+      - 'docs/division-migration.md'
       - 'fs/appendfat/**'
       - 'scripts/install-appendfat-into-linux.sh'
       - 'tests/qemu-common.sh'
@@ -18,6 +22,10 @@ on:
       - '.github/workflows/qemu-keep-size.yml'
   pull_request:
     paths:
+      - '.github/actions/ick-host/action.yml'
+      - 'ci/Makefile'
+      - 'ci/build-toolchain.tsv'
+      - 'docs/division-migration.md'
       - 'fs/appendfat/**'
       - 'scripts/install-appendfat-into-linux.sh'
       - 'tests/qemu-common.sh'
@@ -39,7 +47,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out appendfat repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - id: ick
+        uses: ./.github/actions/ick-host
 
       - name: Check out pinned Linux source
         uses: actions/checkout@v4
@@ -55,7 +67,11 @@ jobs:
           sudo apt-get install -y build-essential bc bison flex libssl-dev libelf-dev qemu-system-x86 busybox-static dosfstools cpio
 
       - name: Characterize FALLOC_FL_KEEP_SIZE compatibility
+        env:
+          ICK: ${{ steps.ick.outputs.compiler }}
         run: sh tests/qemu-keep-size.sh linux
 
       - name: Characterize reservation persistence across clean unmount
+        env:
+          ICK: ${{ steps.ick.outputs.compiler }}
         run: sh tests/qemu-keep-size-characterization.sh linux

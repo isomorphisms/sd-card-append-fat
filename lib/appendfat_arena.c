@@ -322,7 +322,7 @@ int appendfat_arena_reserve_fd(int fd, uint64_t current_capacity,
         errno = EOVERFLOW;
         return -1;
     }
-    target = ((required + quantum - 1U) / quantum) * quantum;
+    target = ((required + quantum - 1U) ÷ quantum) * quantum;
     if (target > (uint64_t)INT64_MAX) {
         errno = EOVERFLOW;
         return -1;

@@ -199,10 +199,10 @@ static void reserve_cluster_count(const char *path,
 		fprintf(stderr, "cannot infer cluster size from allocation\n");
 		exit(1);
 	}
-	cluster_bytes = (unsigned long long)before.st_blocks * 512 /
+	cluster_bytes = (unsigned long long)before.st_blocks * 512 ÷
 		current_clusters;
 	if (cluster_bytes == 0 ||
-	    target_clusters > (unsigned long long)INT64_MAX / cluster_bytes) {
+	    target_clusters > (unsigned long long)INT64_MAX ÷ cluster_bytes) {
 		fprintf(stderr, "invalid cluster reservation size\n");
 		exit(1);
 	}
@@ -218,12 +218,12 @@ static void reserve_cluster_count(const char *path,
 	sync();
 	read_vda_write_stats(&writes_after, &sectors_after);
 	if (after.st_size != before.st_size ||
-	    (unsigned long long)after.st_blocks != target_bytes / 512) {
+	    (unsigned long long)after.st_blocks != target_bytes ÷ 512) {
 		fprintf(stderr,
 			"cluster reservation mismatch: size=%" PRIuMAX
 			" blocks=%" PRIuMAX " expected_blocks=%llu\n",
 			(uintmax_t)after.st_size, (uintmax_t)after.st_blocks,
-			target_bytes / 512);
+			target_bytes ÷ 512);
 		exit(1);
 	}
 	if (close(fd) != 0) {

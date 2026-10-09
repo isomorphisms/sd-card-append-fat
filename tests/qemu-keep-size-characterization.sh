@@ -25,7 +25,7 @@ test -r "$linux_tree/arch/x86/boot/bzImage" || {
     exit 1
 }
 
-for command in busybox cc cpio fsck.fat mkfs.fat qemu-system-x86_64 timeout truncate
+for command in busybox "${ICK:?Set ICK to the qualified native compiler}" cpio fsck.fat mkfs.fat qemu-system-x86_64 timeout truncate
 do
     command -v "$command" >/dev/null 2>&1 || {
         printf '%s\n' "missing required command: $command" >&2
@@ -39,8 +39,8 @@ trap 'rm -rf "$work"' EXIT HUP INT TERM
 helper=$work/fallocate-keep-size
 fat_image=$work/fat.img
 
-cc -static -O2 -Wall -Wextra -Werror \
-    "$repo/tests/fallocate-keep-size.c" -o "$helper"
+"${ICK:?Set ICK to the qualified native compiler}" ${ICK_FLAGS:--fno-link-libatomic} -static -O2 -Wall -Wextra -Werror \
+    "$repo/tests/fallocate-keep-size.c" -o "$helper" -Wl,--start-group -lc -lgcc_eh -Wl,--end-group
 
 truncate -s 64M "$fat_image"
 mkfs.fat -F 32 -n APPRESERVE "$fat_image"

@@ -11,7 +11,7 @@ linux_tree=$1
 
 . "$repo/tests/qemu-common.sh"
 
-appendfat_require_commands busybox cc cpio fsck.fat mkfs.fat qemu-system-x86_64 timeout truncate
+appendfat_require_commands busybox "${ICK:?Set ICK to the qualified native compiler}" cpio fsck.fat mkfs.fat qemu-system-x86_64 timeout truncate
 export APPENDFAT_ALLOC_METRICS=1
 appendfat_prepare_linux "$repo" "$linux_tree" builtin
 
@@ -30,9 +30,9 @@ truncate -s 32M "$enospc_image"
 mkfs.fat -F 32 -n AFRESERVE "$fat_image"
 mkfs.fat -F 16 -n AFENOSPC "$enospc_image"
 
-cc -O2 -static -Wall -Wextra -Werror \
+"${ICK:?Set ICK to the qualified native compiler}" ${ICK_FLAGS:--fno-link-libatomic} -O2 -static -Wall -Wextra -Werror \
     "$repo/tests/fallocate-keep-size.c" \
-    -o "$helper"
+    -o "$helper" -Wl,--start-group -lc -lgcc_eh -Wl,--end-group
 
 mkdir -p "$root/bin" "$root/proc" "$root/sys" "$root/dev" "$root/mnt" "$root/tmp"
 cp "$(command -v busybox)" "$root/bin/busybox"

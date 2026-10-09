@@ -1,7 +1,10 @@
 # appendFAT C67 arena sandbox
 
-This APK compiles the repository's existing `tools/appendfat_arena.c` into a
-small Android NativeActivity for the MIRO C67 (`arm64-v8a`).
+This APK compiles the repository's reusable `lib/appendfat_arena.c` with
+its small Android NativeActivity consumer for ARMv7 and AArch64.
+Set `ICK_STAGE` to the selected qualified compiler stage when invoking the
+existing build script. The [division producer record](../../docs/division-migration.md)
+describes the exact ICK and NDK source stages.
 
 It requests no Android permissions. The test uses only
 `ANativeActivity.internalDataPath`, creates a 4 MiB pre-zeroed
