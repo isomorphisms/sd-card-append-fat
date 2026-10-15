@@ -52,7 +52,8 @@ real Mac extension activation and crash recovery are still acceptance gates.
    `appendfat_arena create "$HOME/AppendFAT-source/append.arena" 1048576`.
    All three backing paths must be absent beforehand; the CLI refuses to
    overwrite existing files. The macOS ICK build is not yet qualified.
-3. Open `macos/fskit/AppendFATFSKit.xcodeproj`, select scheme
+3. Once the ICK Darwin core and link integration are qualified, open
+   `macos/fskit/AppendFATFSKit.xcodeproj`, select scheme
    `AppendFATFSKit`, choose an appropriate signing team, build and launch
    the host app. Xcode must sign the extension with the
    `com.apple.developer.fskit.fsmodule` entitlement.
@@ -76,13 +77,17 @@ attempt destructive power-cut tests on a production SSD.
 ```sh
 xcodebuild -project macos/fskit/AppendFATFSKit.xcodeproj \
   -scheme AppendFATFSKit -destination 'generic/platform=macOS' \
-  CODE_SIGNING_ALLOWED=NO build
+  CODE_SIGNING_ALLOWED=NO \
+  OTHER_CFLAGS=-DAPPENDFAT_FSKIT_SDK_PROBE=1 build
 ```
 
-This is **not** a signed install or mounted acceptance. The Xcode target
-temporarily compiles the C arena core with Apple's native build compiler
-to diagnose SDK interoperation. Release/merge is blocked until ICK produces
-Darwin arm64 and x86_64 core objects through FP and independent ai-ci.
+This is **not** a signed install or mounted acceptance. An explicit `OTHER_CFLAGS=-DAPPENDFAT_FSKIT_SDK_PROBE=1` flag compiles
+an ENOTSUP-only bridge, not the storage core, strictly to verify Apple FSKit
+API compatibility. The default production path intentionally has unresolved
+arena symbols until a Darwin Mach-O core object is supplied by ICK. Linux
+core/bridge behavior is tested separately with the pinned ICK producer.
+Release/merge is blocked until ICK produces Darwin arm64 and x86_64
+objects through FP and independent ai-ci.
 
 ## Required acceptance
 

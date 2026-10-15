@@ -1,3 +1,32 @@
+#if defined(APPENDFAT_FSKIT_SDK_PROBE)
+/*
+ * UNSIGNED SDK COMPILATION PROBE ONLY.
+ * No arena or storage writes are possible in this configuration.
+ * Shipping this configuration would be wrong: every I/O fails ENOTSUP.
+ */
+#include "AppendFATBridge.h"
+#include <errno.h>
+
+int appendfat_fskit_status(const char *path, uint64_t *committed,
+                           uint64_t *capacity)
+{
+    (void)path; (void)committed; (void)capacity;
+    return ENOTSUP;
+}
+int appendfat_fskit_read(const char *path, uint64_t offset, void *data,
+                         size_t capacity, size_t *read_out)
+{
+    (void)path; (void)offset; (void)data; (void)capacity; (void)read_out;
+    return ENOTSUP;
+}
+int appendfat_fskit_append(const char *path, uint64_t offset,
+                           const void *data, size_t length,
+                           uint64_t *new_committed)
+{
+    (void)path; (void)offset; (void)data; (void)length; (void)new_committed;
+    return ENOTSUP;
+}
+#else
 #include "AppendFATBridge.h"
 #include "../../../lib/appendfat_arena.h"
 
@@ -71,3 +100,5 @@ done:
     appendfat_arena_close(&arena);
     return result;
 }
+
+#endif /* APPENDFAT_FSKIT_SDK_PROBE */

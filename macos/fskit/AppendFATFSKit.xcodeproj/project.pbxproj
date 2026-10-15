@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		AAFFA1000000000000000001 /* appendfat_arena.c in Sources */ = {isa = PBXBuildFile; fileRef = AAFFA1000000000000000002 /* appendfat_arena.c */; };
 		CC3283482D99D02200EFFA01 /* AppendFATFSKitExtension.appex in Embed ExtensionKit Extensions */ = {isa = PBXBuildFile; fileRef = CC32833E2D99D02200EFFA01 /* AppendFATFSKitExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		CCF967F02C1C110D00FBE72D /* AppendFATFSKitApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCF967EF2C1C110D00FBE72D /* AppendFATFSKitApp.swift */; };
 		CCF967F22C1C110D00FBE72D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCF967F12C1C110D00FBE72D /* ContentView.swift */; };
@@ -41,7 +40,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		AAFFA1000000000000000002 /* appendfat_arena.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = appendfat_arena.c; path = ../../lib/appendfat_arena.c; sourceTree = SOURCE_ROOT; };
 		CC32833E2D99D02200EFFA01 /* AppendFATFSKitExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.extensionkit-extension"; includeInIndex = 0; path = AppendFATFSKitExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		CCF967EC2C1C110D00FBE72D /* AppendFATFSKit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AppendFATFSKit.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CCF967EF2C1C110D00FBE72D /* AppendFATFSKitApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppendFATFSKitApp.swift; sourceTree = "<group>"; };
@@ -88,7 +86,6 @@
 		CCF967E32C1C110D00FBE72D = {
 			isa = PBXGroup;
 			children = (
-				AAFFA1000000000000000002 /* appendfat_arena.c */,
 				CCF967EE2C1C110D00FBE72D /* AppendFATFSKit */,
 				CC32833F2D99D02200EFFA01 /* AppendFATFSKitExtension */,
 				CCF967ED2C1C110D00FBE72D /* Products */,
@@ -232,7 +229,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				AAFFA1000000000000000001 /* appendfat_arena.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
