@@ -13,7 +13,23 @@ final class AppendFATFileSystem: FSUnaryFileSystem, FSUnaryFileSystemOperations 
 
     func probeResource(resource: FSResource,
                        replyHandler: @escaping (FSProbeResult?, (any Error)?) -> Void) {
-        guard let path = resource as? FSPathURLResource, path.url.isFileURL else {
+        guard let path = resource as? FSPathURLResource,
+              path.url.isFileURL, path.url.path.hasPrefix("/") else {
+            return replyHandler(.notRecognized, nil)
+        }
+        // Don't claim every arbitrary APFS directory as an AppendFAT volume.
+        // A probed directory must already contain our committed arena.
+        let didStartScope = path.url.startAccessingSecurityScopedResource()
+        defer {
+            if didStartScope { path.url.stopAccessingSecurityScopedResource() }
+        }
+        let arena = path.url.appendingPathComponent("append.arena", isDirectory: false)
+        var used: UInt64 = 0
+        var capacity: UInt64 = 0
+        let code = arena.path.withCString {
+            appendfat_fskit_status($0, &used, &capacity)
+        }
+        guard code == 0, capacity > 0, used <= capacity else {
             return replyHandler(.notRecognized, nil)
         }
         replyHandler(.usable(name: "AppendFAT",
