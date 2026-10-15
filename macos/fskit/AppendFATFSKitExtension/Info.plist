@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+ <key>EXAppExtensionAttributes</key>
+ <dict>
+  <key>EXExtensionPointIdentifier</key><string>com.apple.fskit.fsmodule</string>
+  <key>FSShortName</key><string>appendfat</string>
+  <key>FSSupportsPathURLs</key><true/>
+  <key>FSRequiresSecurityScopedPathURLResources</key><true/>
+  <key>FSSupportsBlockResources</key><false/>
+  <key>FSSupportsGenericURLResources</key><false/>
+  <key>FSSupportsServerURLs</key><false/>
+  <key>FSMediaTypes</key><dict/>
+  <key>FSPersonalities</key>
+  <dict>
+   <key>AppendFATPersonality</key>
+   <dict><key>FSName</key><string>AppendFAT</string>
+    <key>FSfileObjectsAreCaseSensitive</key><true/>
+   </dict>
+  </dict>
+  <key>FSActivateOptionSyntax</key><dict><key>shortOptions</key><string>g:m:o:u:</string></dict>
+  <key>FSCheckOptionSyntax</key><dict><key>shortOptions</key><string>nqy</string></dict>
+  <key>FSFormatOptionSyntax</key><dict><key>shortOptions</key><string>v</string></dict>
+ </dict>
+</dict>
+</plist>

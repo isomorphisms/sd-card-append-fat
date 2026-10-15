@@ -1,0 +1,528 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 70;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		CC3283482D99D02200EFFA01 /* AppendFATFSKitExtension.appex in Embed ExtensionKit Extensions */ = {isa = PBXBuildFile; fileRef = CC32833E2D99D02200EFFA01 /* AppendFATFSKitExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		CCF967F02C1C110D00FBE72D /* AppendFATFSKitApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCF967EF2C1C110D00FBE72D /* AppendFATFSKitApp.swift */; };
+		CCF967F22C1C110D00FBE72D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCF967F12C1C110D00FBE72D /* ContentView.swift */; };
+		CCF967F42C1C110E00FBE72D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CCF967F32C1C110E00FBE72D /* Assets.xcassets */; };
+		CCF967F72C1C110E00FBE72D /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CCF967F62C1C110E00FBE72D /* Preview Assets.xcassets */; };
+		CCF9682C2C1C13B300FBE72D /* ViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCF9682B2C1C13AF00FBE72D /* ViewModel.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		CC3283462D99D02200EFFA01 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CCF967E42C1C110D00FBE72D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CC32833D2D99D02200EFFA01;
+			remoteInfo = AppendFATFSKitExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		CCF9682A2C1C113500FBE72D /* Embed ExtensionKit Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(EXTENSIONS_FOLDER_PATH)";
+			dstSubfolderSpec = 16;
+			files = (
+				CC3283482D99D02200EFFA01 /* AppendFATFSKitExtension.appex in Embed ExtensionKit Extensions */,
+			);
+			name = "Embed ExtensionKit Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		CC32833E2D99D02200EFFA01 /* AppendFATFSKitExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.extensionkit-extension"; includeInIndex = 0; path = AppendFATFSKitExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		CCF967EC2C1C110D00FBE72D /* AppendFATFSKit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AppendFATFSKit.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CCF967EF2C1C110D00FBE72D /* AppendFATFSKitApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppendFATFSKitApp.swift; sourceTree = "<group>"; };
+		CCF967F12C1C110D00FBE72D /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		CCF967F32C1C110E00FBE72D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		CCF967F62C1C110E00FBE72D /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		CCF967F82C1C110E00FBE72D /* AppendFATFSKit.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AppendFATFSKit.entitlements; sourceTree = "<group>"; };
+		CCF9682B2C1C13AF00FBE72D /* ViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModel.swift; sourceTree = "<group>"; };
+		CCF9682D2C1C14AE00FBE72D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		CC3283492D99D02200EFFA01 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = CC32833D2D99D02200EFFA01 /* AppendFATFSKitExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		CC32833F2D99D02200EFFA01 /* AppendFATFSKitExtension */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (CC3283492D99D02200EFFA01 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = AppendFATFSKitExtension; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		CC32833B2D99D02200EFFA01 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CCF967E92C1C110D00FBE72D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		CCF967E32C1C110D00FBE72D = {
+			isa = PBXGroup;
+			children = (
+				CCF967EE2C1C110D00FBE72D /* AppendFATFSKit */,
+				CC32833F2D99D02200EFFA01 /* AppendFATFSKitExtension */,
+				CCF967ED2C1C110D00FBE72D /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		CCF967ED2C1C110D00FBE72D /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CCF967EC2C1C110D00FBE72D /* AppendFATFSKit.app */,
+				CC32833E2D99D02200EFFA01 /* AppendFATFSKitExtension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		CCF967EE2C1C110D00FBE72D /* AppendFATFSKit */ = {
+			isa = PBXGroup;
+			children = (
+				CCF9682D2C1C14AE00FBE72D /* Info.plist */,
+				CCF967EF2C1C110D00FBE72D /* AppendFATFSKitApp.swift */,
+				CCF967F12C1C110D00FBE72D /* ContentView.swift */,
+				CCF9682B2C1C13AF00FBE72D /* ViewModel.swift */,
+				CCF967F32C1C110E00FBE72D /* Assets.xcassets */,
+				CCF967F82C1C110E00FBE72D /* AppendFATFSKit.entitlements */,
+				CCF967F52C1C110E00FBE72D /* Preview Content */,
+			);
+			path = AppendFATFSKit;
+			sourceTree = "<group>";
+		};
+		CCF967F52C1C110E00FBE72D /* Preview Content */ = {
+			isa = PBXGroup;
+			children = (
+				CCF967F62C1C110E00FBE72D /* Preview Assets.xcassets */,
+			);
+			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		CC32833D2D99D02200EFFA01 /* AppendFATFSKitExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CC32834A2D99D02200EFFA01 /* Build configuration list for PBXNativeTarget "AppendFATFSKitExtension" */;
+			buildPhases = (
+				CC32833A2D99D02200EFFA01 /* Sources */,
+				CC32833B2D99D02200EFFA01 /* Frameworks */,
+				CC32833C2D99D02200EFFA01 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				CC32833F2D99D02200EFFA01 /* AppendFATFSKitExtension */,
+			);
+			name = AppendFATFSKitExtension;
+			packageProductDependencies = (
+			);
+			productName = AppendFATFSKitExtension;
+			productReference = CC32833E2D99D02200EFFA01 /* AppendFATFSKitExtension.appex */;
+			productType = "com.apple.product-type.extensionkit-extension";
+		};
+		CCF967EB2C1C110D00FBE72D /* AppendFATFSKit */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CCF968112C1C110E00FBE72D /* Build configuration list for PBXNativeTarget "AppendFATFSKit" */;
+			buildPhases = (
+				CCF967E82C1C110D00FBE72D /* Sources */,
+				CCF967E92C1C110D00FBE72D /* Frameworks */,
+				CCF967EA2C1C110D00FBE72D /* Resources */,
+				CCF9682A2C1C113500FBE72D /* Embed ExtensionKit Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CC3283472D99D02200EFFA01 /* PBXTargetDependency */,
+			);
+			name = AppendFATFSKit;
+			productName = AppendFATFSKit;
+			productReference = CCF967EC2C1C110D00FBE72D /* AppendFATFSKit.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		CCF967E42C1C110D00FBE72D /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1630;
+				LastUpgradeCheck = 1630;
+				TargetAttributes = {
+					CC32833D2D99D02200EFFA01 = {
+						CreatedOnToolsVersion = 16.3;
+						LastSwiftMigration = 1630;
+					};
+					CCF967EB2C1C110D00FBE72D = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = CCF967E72C1C110D00FBE72D /* Build configuration list for PBXProject "AppendFATFSKit" */;
+			compatibilityVersion = "Xcode 15.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = CCF967E32C1C110D00FBE72D;
+			productRefGroup = CCF967ED2C1C110D00FBE72D /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				CCF967EB2C1C110D00FBE72D /* AppendFATFSKit */,
+				CC32833D2D99D02200EFFA01 /* AppendFATFSKitExtension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		CC32833C2D99D02200EFFA01 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CCF967EA2C1C110D00FBE72D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CCF967F72C1C110E00FBE72D /* Preview Assets.xcassets in Resources */,
+				CCF967F42C1C110E00FBE72D /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		CC32833A2D99D02200EFFA01 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CCF967E82C1C110D00FBE72D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CCF967F22C1C110D00FBE72D /* ContentView.swift in Sources */,
+				CCF9682C2C1C13B300FBE72D /* ViewModel.swift in Sources */,
+				CCF967F02C1C110D00FBE72D /* AppendFATFSKitApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		CC3283472D99D02200EFFA01 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CC32833D2D99D02200EFFA01 /* AppendFATFSKitExtension */;
+			targetProxy = CC3283462D99D02200EFFA01 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		CC32834B2D99D02200EFFA01 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = AppendFATFSKitExtension/AppendFATFSKitExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AppendFATFSKitExtension/Info.plist;
+				SWIFT_OBJC_BRIDGING_HEADER = AppendFATFSKitExtension/AppendFATFSKitExtension-Bridging-Header.h;
+				INFOPLIST_KEY_CFBundleDisplayName = AppendFATFSKitExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.isomorphisms.appendfat.fskit.AppendFATFSKitExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		CC32834C2D99D02200EFFA01 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = AppendFATFSKitExtension/AppendFATFSKitExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AppendFATFSKitExtension/Info.plist;
+				SWIFT_OBJC_BRIDGING_HEADER = AppendFATFSKitExtension/AppendFATFSKitExtension-Bridging-Header.h;
+				INFOPLIST_KEY_CFBundleDisplayName = AppendFATFSKitExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.isomorphisms.appendfat.fskit.AppendFATFSKitExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		CCF9680F2C1C110E00FBE72D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		CCF968102C1C110E00FBE72D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		CCF968122C1C110E00FBE72D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = AppendFATFSKit/AppendFATFSKit.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_ASSET_PATHS = "\"AppendFATFSKit/Preview Content\"";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AppendFATFSKit/Info.plist;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.isomorphisms.appendfat.fskit;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		CCF968132C1C110E00FBE72D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = AppendFATFSKit/AppendFATFSKit.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_ASSET_PATHS = "\"AppendFATFSKit/Preview Content\"";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AppendFATFSKit/Info.plist;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.isomorphisms.appendfat.fskit;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		CC32834A2D99D02200EFFA01 /* Build configuration list for PBXNativeTarget "AppendFATFSKitExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CC32834B2D99D02200EFFA01 /* Debug */,
+				CC32834C2D99D02200EFFA01 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CCF967E72C1C110D00FBE72D /* Build configuration list for PBXProject "AppendFATFSKit" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CCF9680F2C1C110E00FBE72D /* Debug */,
+				CCF968102C1C110E00FBE72D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CCF968112C1C110E00FBE72D /* Build configuration list for PBXNativeTarget "AppendFATFSKit" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CCF968122C1C110E00FBE72D /* Debug */,
+				CCF968132C1C110E00FBE72D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = CCF967E42C1C110D00FBE72D /* Project object */;
+}
