@@ -1,0 +1,39 @@
+name: FSKit macOS SDK compilation (diagnostic only)
+on:
+  pull_request:
+    paths:
+      - 'macos/fskit/**'
+      - 'lib/appendfat_arena.c'
+      - 'lib/appendfat_arena.h'
+      - 'tests/fskit-bridge.c'
+      - '.github/workflows/fskit-macos.yml'
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.repository }}-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  sdk-smoke:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record environment
+        run: |
+          sw_vers -productVersion
+          uname -m
+          xcodebuild -version
+      - name: Compile unsigned FSKit host and extension
+        run: |
+          xcodebuild -project macos/fskit/AppendFATFSKit.xcodeproj \
+            -scheme AppendFATFSKit -configuration Debug \
+            -destination 'generic/platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO build
+      - name: APFS C bridge diagnostic (NOT ICK acceptance)
+        run: |
+          root="$PWD"
+          scratch=$(mktemp -d /tmp/appendfat-fskit-XXXXXXXX)
+          trap 'rm -f "$scratch/append.arena" "$scratch/append.arena.used" "$scratch/append.arena.lock" "$scratch/bridge-test"; rmdir "$scratch"' EXIT
+          xcrun cc -std=c11 -O1 -Wall -Wextra \
+            -I"$root/lib" "$root/lib/appendfat_arena.c" \
+            "$root/macos/fskit/AppendFATFSKitExtension/AppendFATBridge.c" \
+            "$root/tests/fskit-bridge.c" -o "$scratch/bridge-test"
+          "$scratch/bridge-test" "$scratch/append.arena"
