@@ -8,7 +8,7 @@ simultaneous writers	tests/fallocate-keep-size.c:reservation_regressions	Indepen
 truncate and O_TRUNC	tests/fallocate-keep-size.c:reserve_ahead_truncate; reservation_o_trunc	Live capacity and stock-vfat remount
 unlink and replacement	tests/fallocate-keep-size.c:reservation_regressions	Open orphan refill; final-close free-cluster accounting
 rename and exchange	tests/fallocate-keep-size.c:reservation_rename; reservation_exchange	Ownership follows inode
-allocation and attachment failure	tests/fallocate-keep-size.c:reservation_regressions	Test-only one-shot faults; old chain preserved; new chain unwound; retry
+allocation and attachment failure	tests/fallocate-keep-size.c:reservation_regressions	Test-only one-shot faults including post-tail-mutation rollback; old chain preserved; new chain unwound; retry
 read-only remount	tests/fallocate-keep-size.c:reservation_regressions	Capacity released before read-only state
 superblock teardown	tests/qemu-reserve-ahead.sh	Shutdown trace owners=0 owner_refs=0; embedded inode state
 reachable excess-tail recovery	tests/fallocate-keep-size.c:reservation_recovered_chain	Synthetic on-disk recovery state on an unmounted disposable FAT32 image

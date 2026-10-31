@@ -83,7 +83,9 @@ append descriptions with exact byte counts, close ordering, replacement,
 unlink followed by another refill, truncate, mixed KEEP_SIZE, rename/exchange,
 and read-only remount. `APPENDFAT_TEST_FAULTS` enables one-shot pre-allocation
 ENOMEM, partial-allocation EIO, pre-mirror EIO, and post-allocation/pre-attachment
-EIO controls only in test builds.
+EIO controls only in test builds. A fifth control reports an attachment error
+after the old tail's primary and mirror entries have been changed, exercising
+the actual tail-link restoration path before the new chain is freed.
 Their regressions compare logical length, allocation, free-cluster counts,
 and successful retry. They do not simulate a device that also fails rollback
 writes or every instruction inside FAT mirroring.

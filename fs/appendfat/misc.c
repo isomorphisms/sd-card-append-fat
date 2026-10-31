@@ -7,8 +7,14 @@
  *		 and date_dos2unix for date==0 by Igor Zhbanov(bsg@uniyar.ac.ru)
  */
 
-#include "fat.h"
+#include <linux/module.h>
 #include <linux/iversion.h>
+#include "fat.h"
+
+#ifdef APPENDFAT_TEST_FAULTS
+static int test_fail_tail_write;
+module_param(test_fail_tail_write, int, 0600);
+#endif
 
 /*
  * fat_fs_error reports a file system problem that might indicate fa data
@@ -146,6 +152,11 @@ int appendfat_chain_add(struct inode *inode, int new_dclus, int nr_cluster)
 #endif
 
 			ret = appendfat_ent_write(inode, &fatent, new_dclus, wait);
+#ifdef APPENDFAT_TEST_FAULTS
+			/* Exercise rollback after both FAT copies have been changed. */
+			if (!ret && xchg(&test_fail_tail_write, 0))
+				ret = -EIO;
+#endif
 			if (ret < 0)
 				appendfat_ent_write(inode, &fatent, old, wait);
 			fatent_brelse(&fatent);

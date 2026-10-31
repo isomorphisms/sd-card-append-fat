@@ -716,15 +716,16 @@ static void reservation_regressions(const char *existing_path)
     require_call(close(replacement_fd), "close replacement");
     require_call(unlink(path), "remove replacement regression");
 
-    /* One-shot faults precede attachment of any new live chain. */
+    /* One-shot faults cover allocation through post-mutation tail rollback. */
     {
         const char *parameters[] = {
             "/sys/module/appendfat_core/parameters/test_fail_allocate",
             "/sys/module/appendfat_core/parameters/test_fail_attach",
             "/sys/module/appendfat_core/parameters/test_fail_alloc_partial",
-            "/sys/module/appendfat_core/parameters/test_fail_mirror"
+            "/sys/module/appendfat_core/parameters/test_fail_mirror",
+            "/sys/module/appendfat_core/parameters/test_fail_tail_write"
         };
-        const int errors[] = { ENOMEM, EIO, EIO, EIO };
+        const int errors[] = { ENOMEM, EIO, EIO, EIO, EIO };
         for (iteration = 0; iteration < sizeof(errors) / sizeof(errors[0]); iteration++) {
             int control;
             unsigned char byte = 0x67;
