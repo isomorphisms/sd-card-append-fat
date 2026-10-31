@@ -11,8 +11,40 @@ linux_tree=$1
 
 . "$repo/tests/qemu-common.sh"
 
-appendfat_require_commands busybox cc cpio fsck.fat mkfs.fat qemu-system-x86_64 timeout truncate
+appendfat_require_commands awk busybox cc cpio fsck.fat mkfs.fat mshowfat qemu-system-x86_64 timeout truncate
 appendfat_prepare_linux "$repo" "$linux_tree" builtin
+
+appendfat_check_fat_chain()
+{
+    image=$1
+    image_path=$2
+    expected_clusters=$3
+
+    mshowfat -i "$image" "$image_path" | awk -v expected="$expected_clusters" '
+        {
+            print
+            if (NF < 2)
+                exit 1
+            for (field = 2; field <= NF; field++) {
+                entry = $field
+                if (entry !~ /^<[0-9][0-9]*(-[0-9][0-9]*)?>$/)
+                    exit 1
+                gsub(/[<>]/, "", entry)
+                parts = split(entry, ends, "-")
+                if (parts == 1)
+                    clusters++
+                else if (parts == 2)
+                    clusters += ends[2] - ends[1] + 1
+                else
+                    exit 1
+            }
+            records++
+        }
+        END {
+            exit records != 1 || clusters != expected
+        }
+    '
+}
 
 work=$(mktemp -d "${TMPDIR:-/tmp}/appendfat-reserve-ahead.XXXXXX")
 trap 'rm -rf "$work"' EXIT HUP INT TERM
@@ -68,6 +100,17 @@ if [ "$qemu_status" -ne 0 ] && [ "$qemu_status" -ne 124 ]; then
     printf '%s\n' "qemu exited unexpectedly: $qemu_status" >&2
     exit "$qemu_status"
 fi
+
+# Validate the final, stock-vfat-readable FAT chains directly.  The guest
+# checks live-inode accounting before remount; these checks deliberately do
+# not rely on stat output and also cover truncate and unlink cleanup.
+appendfat_check_fat_chain "$normal_image" ::ahead.bin 5
+appendfat_check_fat_chain "$normal_image" ::truncate.bin 1
+if mshowfat -i "$normal_image" ::unlink.bin; then
+    printf '%s\n' 'unlink.bin still has a FAT chain' >&2
+    exit 1
+fi
+appendfat_check_fat_chain "$near_full_image" ::near-full.bin 2
 
 fsck.fat -n -v "$normal_image"
 fsck.fat -n -v "$near_full_image"

@@ -1,0 +1,2 @@
+APPENDFAT_APPEND_RECEIPT format=v1 run_id=baseline-captured variant=baseline policy_clusters=1 target_clusters=64 cluster_bytes=512 chunk_bytes=97 target_bytes=32768 logical_size=32768 logical_blocks=64 content_byte=90 vda_write_ops=17 vda_write_sectors=68
+APPENDFAT_APPEND_RECEIPT format=v1 run_id=baseline-captured variant=baseline policy_clusters=1 target_clusters=64 cluster_bytes=512 chunk_bytes=97 target_bytes=32768 logical_size=32768 logical_blocks=64 content_byte=90 vda_write_ops=17 vda_write_sectors=68

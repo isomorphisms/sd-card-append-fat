@@ -7,6 +7,7 @@ mount -t proc proc /proc
 mount -t sysfs sysfs /sys
 mount -t devtmpfs devtmpfs /dev
 mkdir -p /mnt/card
+mount -t appendfat /dev/vda /mnt/card
 
 # Normal reserve-ahead behavior: one four-cluster allocator batch.  The
 # fixture derives cluster size from stat rather than assuming 512-byte clusters.

@@ -214,7 +214,10 @@ speculative allocation is appropriate.
 boundary on FAT32, truncation and unlink cleanup, stock-vfat remount, and a
 near-full FAT16 image with exactly two free data clusters. The near-full case
 must allocate one cluster, then the final remaining cluster, and only then
-return true `ENOSPC`.
+return true `ENOSPC`. Host `mshowfat` independently counts the final FAT
+chains after the guest assertions. `tests/qemu-reserve-ahead-mutations.sh`
+also proves the gate rejects a disposable mutant that disables the bounded
+batch and allocates only one required cluster.
 
 ## Crash boundaries to exercise before production acceptance
 

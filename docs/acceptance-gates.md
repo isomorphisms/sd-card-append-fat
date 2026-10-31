@@ -110,10 +110,17 @@ The gate checks:
 - a clean stock-vfat remount preserves exact logical contents and sees only
   the clusters required by logical size, so unused reserve-ahead capacity is
   not claimed to persist across unmount;
+- host `mshowfat` independently counts the final FAT chains for the grown,
+  truncated, unlinked, and near-full files rather than inferring allocation
+  solely from `stat`;
 - on a FAT16 image with exactly two free data clusters, the four-cluster
   speculative request falls back to one required cluster, then the final
   required cluster, and returns `ENOSPC` only when no cluster remains;
 - host `fsck.fat -n -v` passes on both resulting images.
+
+`tests/qemu-reserve-ahead-mutations.sh` also changes the ordinary write path
+in a disposable source copy to allocate only one required cluster. The QEMU
+gate must reject that mutant at its initial live-inode allocation assertion.
 
 This gate establishes bounded live-inode reserve-ahead semantics and
 near-full fallback behavior. It does not establish persistent reservation
