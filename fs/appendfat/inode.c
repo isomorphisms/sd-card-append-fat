@@ -101,7 +101,9 @@ static struct fat_floppy_defaults {
 },
 };
 
+#ifndef APPENDFAT_APPEND_AHEAD_CLUSTERS
 #define APPENDFAT_APPEND_AHEAD_CLUSTERS	(MAX_BUF_PER_PAGE / 2)
+#endif
 
 int appendfat_add_clusters(struct inode *inode, int nr_cluster)
 {
@@ -175,10 +177,24 @@ static inline int __fat_get_block(struct inode *inode, sector_t iblock,
 		 * space for the whole batch, preserve ordinary FAT write behavior
 		 * by retrying with the single cluster the current write needs.
 		 */
+#ifdef APPENDFAT_ALLOC_METRICS
+		MSDOS_I(inode)->alloc_metrics = true;
+		pr_info("APPENDFAT_APPEND_METRIC reserve_start requested_clusters=%lu allocated_clusters=%llu\n",
+			(unsigned long)APPENDFAT_APPEND_AHEAD_CLUSTERS,
+			(unsigned long long)(inode->i_blocks >>
+					     (sbi->cluster_bits - 9)));
+#endif
 		err = appendfat_add_clusters(inode,
 					     APPENDFAT_APPEND_AHEAD_CLUSTERS);
 		if (err == -ENOSPC)
 			err = appendfat_add_cluster(inode);
+#ifdef APPENDFAT_ALLOC_METRICS
+		pr_info("APPENDFAT_APPEND_METRIC reserve_end result=%d allocated_clusters=%llu\n",
+			err,
+			(unsigned long long)(inode->i_blocks >>
+					     (sbi->cluster_bits - 9)));
+		MSDOS_I(inode)->alloc_metrics = false;
+#endif
 		if (err)
 			return err;
 	}

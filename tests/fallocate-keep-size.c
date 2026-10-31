@@ -636,6 +636,94 @@ static void require_minimal_allocation(const char *path)
            (uintmax_t)st.st_blocks, cluster_bytes);
 }
 
+static void append_measure_workload(const char *path,
+                                    unsigned long long target_clusters,
+                                    unsigned long long chunk_bytes,
+                                    unsigned char value)
+{
+    unsigned char buffer[4096];
+    struct stat st;
+    unsigned long long cluster_bytes;
+    unsigned long long target_bytes;
+    unsigned long long left;
+    unsigned long long writes_before, writes_after;
+    unsigned long long sectors_before, sectors_after;
+    int fd;
+
+    if (target_clusters == 0 || chunk_bytes == 0 ||
+        chunk_bytes > sizeof(buffer)) {
+        fprintf(stderr, "invalid append measurement workload\n");
+        exit(2);
+    }
+
+    fd = open(path, O_CREAT | O_TRUNC | O_WRONLY, 0666);
+    if (fd < 0) {
+        perror(path);
+        exit(1);
+    }
+    cluster_bytes = fd_cluster_bytes(fd);
+    if (cluster_bytes == 0 ||
+        target_clusters > (unsigned long long)INT64_MAX / cluster_bytes) {
+        fprintf(stderr, "invalid append measurement geometry\n");
+        exit(2);
+    }
+    target_bytes = target_clusters * cluster_bytes;
+    left = target_bytes;
+    memset(buffer, value, sizeof(buffer));
+
+    sync();
+    read_vda_write_stats(&writes_before, &sectors_before);
+    printf("APPENDFAT_APPEND_MEASURE_BEGIN clusters=%llu cluster_bytes=%llu "
+           "chunk_bytes=%llu target_bytes=%llu\n",
+           target_clusters, cluster_bytes, chunk_bytes, target_bytes);
+    fflush(stdout);
+
+    while (left > 0) {
+        size_t amount = left < chunk_bytes ? (size_t)left : (size_t)chunk_bytes;
+        ssize_t written = write(fd, buffer, amount);
+
+        if (written < 0) {
+            perror("append measurement write");
+            exit(1);
+        }
+        if (written == 0) {
+            fprintf(stderr, "zero-length append measurement write\n");
+            exit(1);
+        }
+        left -= (unsigned long long)written;
+    }
+
+    if (fsync(fd) != 0) {
+        perror("fsync append measurement");
+        exit(1);
+    }
+    sync();
+    read_vda_write_stats(&writes_after, &sectors_after);
+    if (fstat(fd, &st) != 0) {
+        perror("fstat append measurement result");
+        exit(1);
+    }
+    if ((unsigned long long)st.st_size != target_bytes) {
+        fprintf(stderr,
+                "append measurement size mismatch: expected=%llu actual=%" PRIuMAX "\n",
+                target_bytes, (uintmax_t)st.st_size);
+        exit(1);
+    }
+
+    printf("APPENDFAT_APPEND_WORKLOAD size=%" PRIuMAX
+           " blocks=%" PRIuMAX " cluster_bytes=%llu"
+           " vda_write_ops=%llu vda_write_sectors=%llu\n",
+           (uintmax_t)st.st_size, (uintmax_t)st.st_blocks, cluster_bytes,
+           writes_after - writes_before, sectors_after - sectors_before);
+    printf("APPENDFAT_APPEND_MEASURE_END\n");
+    fflush(stdout);
+
+    if (close(fd) != 0) {
+        perror("close append measurement");
+        exit(1);
+    }
+}
+
 static void check_file(const char *path,
                        unsigned long long expected_size,
                        const char *expected_prefix,
@@ -752,7 +840,7 @@ int main(int argc, char **argv)
 			"reserve|reserve-clusters|extend-clusters|append|"
 			"reserve-ahead-sequence|reserve-ahead-truncate|reserve-ahead-unlink|"
 			"reserve-ahead-near-full|check-reserve-ahead|check-near-full|"
-			"fill-leave-clusters|minimal-blocks|check|blocks ...\n",
+			"fill-leave-clusters|append-measure|minimal-blocks|check|blocks ...\n",
                 argv[0]);
         return 2;
     }
@@ -960,6 +1048,25 @@ int main(int argc, char **argv)
             return 2;
         }
         fill_leave_clusters(argv[2], parse_number(argv[3]));
+        return 0;
+    }
+
+    if (strcmp(command, "append-measure") == 0) {
+        unsigned long long value;
+
+        if (argc != 6) {
+            fprintf(stderr,
+                    "usage: %s append-measure PATH CLUSTERS CHUNK_BYTES BYTE\n",
+                    argv[0]);
+            return 2;
+        }
+        value = parse_number(argv[5]);
+        if (value > 255) {
+            fprintf(stderr, "byte value out of range: %llu\n", value);
+            return 2;
+        }
+        append_measure_workload(argv[2], parse_number(argv[3]),
+                                parse_number(argv[4]), (unsigned char)value);
         return 0;
     }
 

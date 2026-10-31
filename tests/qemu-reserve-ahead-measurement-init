@@ -1,0 +1,22 @@
+#!/bin/sh
+set -eu
+
+export PATH=/bin
+
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev
+mkdir -p /mnt/card
+
+mount -t appendfat /dev/vda /mnt/card
+/bin/appendfat-fixture append-measure /mnt/card/workload.bin 64 97 90
+sync
+umount /mnt/card
+
+mount -t vfat /dev/vda /mnt/card
+/bin/appendfat-fixture minimal-blocks /mnt/card/workload.bin
+sync
+umount /mnt/card
+
+echo APPENDFAT_QEMU_APPEND_MEASUREMENT_PASS
+poweroff -f

@@ -22,6 +22,19 @@ appendfat_prepare_linux()
     if [ "${APPENDFAT_ALLOC_METRICS:-0}" = 1 ]; then
         export KCFLAGS="${KCFLAGS:+$KCFLAGS }-DAPPENDFAT_ALLOC_METRICS"
     fi
+    if [ -n "${APPENDFAT_APPEND_AHEAD_CLUSTERS:-}" ]; then
+        case "$APPENDFAT_APPEND_AHEAD_CLUSTERS" in
+            *[!0-9]*|'')
+                printf '%s\n' "invalid APPENDFAT_APPEND_AHEAD_CLUSTERS" >&2
+                return 2
+                ;;
+            0)
+                printf '%s\n' "APPENDFAT_APPEND_AHEAD_CLUSTERS must be positive" >&2
+                return 2
+                ;;
+        esac
+        export KCFLAGS="${KCFLAGS:+$KCFLAGS }-DAPPENDFAT_APPEND_AHEAD_CLUSTERS=$APPENDFAT_APPEND_AHEAD_CLUSTERS"
+    fi
 
     appendfat_actual=$(git -C "$appendfat_linux_tree" rev-parse HEAD)
     if [ "$appendfat_actual" != "$appendfat_pinned_linux" ]; then

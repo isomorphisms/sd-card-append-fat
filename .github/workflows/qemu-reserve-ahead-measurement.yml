@@ -1,0 +1,58 @@
+name: QEMU appendfat reserve-ahead measurement
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'fs/appendfat/**'
+      - 'scripts/install-appendfat-into-linux.sh'
+      - 'tests/qemu-common.sh'
+      - 'tests/qemu-reserve-ahead-measurement.sh'
+      - 'tests/qemu-reserve-ahead-measurement-init'
+      - 'tests/fallocate-keep-size.c'
+      - '.github/workflows/qemu-reserve-ahead-measurement.yml'
+  pull_request:
+    paths:
+      - 'fs/appendfat/**'
+      - 'scripts/install-appendfat-into-linux.sh'
+      - 'tests/qemu-common.sh'
+      - 'tests/qemu-reserve-ahead-measurement.sh'
+      - 'tests/qemu-reserve-ahead-measurement-init'
+      - 'tests/fallocate-keep-size.c'
+      - '.github/workflows/qemu-reserve-ahead-measurement.yml'
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  measurement:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out appendfat repository
+        uses: actions/checkout@v4
+
+      - name: Check out pinned Linux baseline tree
+        uses: actions/checkout@v4
+        with:
+          repository: torvalds/linux
+          ref: 238650ef6c7c7cca08e032527329424c9fbd70e5
+          path: linux-baseline
+          fetch-depth: 1
+
+      - name: Check out pinned Linux reserve-ahead tree
+        uses: actions/checkout@v4
+        with:
+          repository: torvalds/linux
+          ref: 238650ef6c7c7cca08e032527329424c9fbd70e5
+          path: linux-ahead
+          fetch-depth: 1
+
+      - name: Install build and VM dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential bc bison flex libssl-dev libelf-dev qemu-system-x86 busybox-static dosfstools cpio
+
+      - name: Compare one-cluster growth with reserve-ahead
+        run: sh tests/qemu-reserve-ahead-measurement.sh linux-baseline linux-ahead
