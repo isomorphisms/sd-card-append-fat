@@ -35,5 +35,5 @@ mount -t vfat /dev/vda /mnt/card
 sync
 umount /mnt/card
 
-echo APPENDFAT_KEEP_SIZE_CONSUME_PASS
+/bin/fallocate-keep-size kernel-marker APPENDFAT_KEEP_SIZE_CONSUME_PASS
 poweroff -f

@@ -78,6 +78,12 @@ before interpreting statfs geometry; this prevents an omitted mount from
 measuring initramfs allocation. The original preserved fixture omitted that
 mount; the retained `ee0e864` recovery restores it.
 
+Success markers use the C fixture's `kernel-marker` command, which writes one
+record through `/dev/kmsg`. In hosted run `41239198324`, printk metrics split
+the userspace `APPENDFAT_KEEP_SIZE_FULL_CONSUME_PASS` line despite successful
+guest assertions and poweroff. Serializing the marker with kernel records
+repairs that capture race; all content, allocation, and fsck assertions remain.
+
 Lifetime regressions exercise forced cache reclamation, independent concurrent
 append descriptions with exact byte counts, close ordering, replacement,
 unlink followed by another refill, truncate, mixed KEEP_SIZE, rename/exchange,

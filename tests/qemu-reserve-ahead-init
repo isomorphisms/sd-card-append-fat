@@ -67,5 +67,5 @@ mount -t vfat /dev/vdb /mnt/card
 /bin/appendfat-fixture minimal-blocks /mnt/card/near-full.bin
 umount /mnt/card
 
-echo APPENDFAT_QEMU_RESERVE_AHEAD_PASS
+/bin/appendfat-fixture kernel-marker APPENDFAT_QEMU_RESERVE_AHEAD_PASS
 poweroff -f

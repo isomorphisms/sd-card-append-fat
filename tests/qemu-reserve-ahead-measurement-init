@@ -46,5 +46,5 @@ mount -t vfat /dev/vda /mnt/card
 sync
 umount /mnt/card
 
-echo APPENDFAT_QEMU_APPEND_MEASUREMENT_PASS
+/bin/appendfat-fixture kernel-marker APPENDFAT_QEMU_APPEND_MEASUREMENT_PASS
 poweroff -f

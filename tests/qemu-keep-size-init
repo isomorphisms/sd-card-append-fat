@@ -75,5 +75,5 @@ rm /mnt/card/enospc.bin
 sync
 umount /mnt/card
 
-echo APPENDFAT_QEMU_KEEP_SIZE_PASS
+/bin/fallocate-keep-size kernel-marker APPENDFAT_QEMU_KEEP_SIZE_PASS
 poweroff -f

@@ -383,6 +383,26 @@ static void write_measurement_end(const char *run_id)
     }
 }
 
+/* Serialize a success marker with printk output instead of racing /dev/console. */
+static void write_kernel_marker(const char *token)
+{
+    char record[256];
+    int length, fd;
+
+    require_measurement_token(token, "kernel marker");
+    length = snprintf(record, sizeof(record), "<6>%s\n", token);
+    if (length < 0 || (size_t)length >= sizeof(record)) {
+        fprintf(stderr, "kernel marker overflow\n");
+        exit(1);
+    }
+    fd = open_existing("/dev/kmsg", O_WRONLY | O_CLOEXEC);
+    write_all(fd, record, (size_t)length, "write kernel marker");
+    if (close(fd) != 0) {
+        perror("close kernel marker");
+        exit(1);
+    }
+}
+
 static void write_measurement_receipt(const char *receipt_path,
                                       const char *run_id,
                                       const char *variant,
@@ -1563,6 +1583,15 @@ int main(int argc, char **argv)
     }
 
     command = argv[1];
+
+    if (strcmp(command, "kernel-marker") == 0) {
+        if (argc != 3) {
+            fprintf(stderr, "usage: %s kernel-marker TOKEN\n", argv[0]);
+            return 2;
+        }
+        write_kernel_marker(argv[2]);
+        return 0;
+    }
 
     if (strcmp(command, "keep") == 0 ||
         strcmp(command, "expect-enospc") == 0) {

@@ -57,5 +57,5 @@ do
     umount /mnt/card
 done
 
-echo APPENDFAT_QEMU_FAT_MATRIX_PASS
+/bin/fallocate-keep-size kernel-marker APPENDFAT_QEMU_FAT_MATRIX_PASS
 poweroff -f
