@@ -288,6 +288,44 @@ void appendfat_kill_sb(struct super_block *sb)
 }
 EXPORT_SYMBOL_GPL(appendfat_kill_sb);
 
+/*
+ * A power cut may leave a reachable FAT chain longer than the committed
+ * directory length.  i_blocks reconstructed from that length is not evidence
+ * of a reservation.  Before allocating on a newly instantiated regular inode,
+ * compare the real chain and discard only its uncommitted tail.  Otherwise a
+ * refill would attach after the old tail while accounting from logical EOF.
+ * Unreachable chains still require ordinary offline FAT recovery.
+ */
+static int appendfat_verify_allocation(struct inode *inode)
+{
+	struct msdos_inode_info *ei = MSDOS_I(inode);
+	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
+	int err, fclus, dclus;
+	unsigned long long expected;
+
+	if (ei->allocation_verified)
+		return 0;
+	expected = inode->i_blocks >> (sbi->cluster_bits - 9);
+	if (ei->i_start) {
+		err = appendfat_get_cluster(inode, FAT_ENT_EOF, &fclus, &dclus);
+		if (err < 0)
+			return err;
+		if ((unsigned long long)fclus + 1 < expected)
+			return -EIO;
+		if ((unsigned long long)fclus + 1 > expected) {
+			down_write(&ei->truncate_lock);
+			err = appendfat_truncate_blocks(inode, i_size_read(inode));
+			up_write(&ei->truncate_lock);
+			if (err)
+				return err;
+		}
+	} else if (expected) {
+		return -EIO;
+	}
+	ei->allocation_verified = true;
+	return 0;
+}
+
 int appendfat_add_clusters(struct inode *inode, int nr_cluster)
 {
 	int clusters[MAX_BUF_PER_PAGE / 2];
@@ -295,6 +333,10 @@ int appendfat_add_clusters(struct inode *inode, int nr_cluster)
 
 	if (nr_cluster <= 0 || nr_cluster > ARRAY_SIZE(clusters))
 		return -EINVAL;
+
+	err = appendfat_verify_allocation(inode);
+	if (err)
+		return err;
 
 #ifdef APPENDFAT_TEST_FAULTS
 	if (xchg(&test_fail_allocate, 0))
@@ -1045,6 +1087,7 @@ static struct inode *fat_alloc_inode(struct super_block *sb)
 	INIT_LIST_HEAD(&ei->reservation_node);
 	ei->reservation_capacity = 0;
 	ei->reservation_owner = false;
+	ei->allocation_verified = false;
 
 	return &ei->vfs_inode;
 }

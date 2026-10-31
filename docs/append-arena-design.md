@@ -202,9 +202,14 @@ The policy is therefore:
   checks that unused reserve-ahead clusters are released;
 - **enablement:** reserve-ahead is part of the experimental appendfat
   filesystem rather than a stock-vfat mount option;
-- **persistence:** no new on-disk reservation metadata is introduced. Existing
-  FAT inode eviction trims unwritten preallocation, so reserve-ahead is not yet
-  promised across inode eviction, close/reopen, or clean unmount/remount.
+- **lifetime:** a mount-session list holds one reference per linked regular
+  inode with unused capacity, independently of descriptor closure and cache
+  reclamation. Unlink, replacement, truncate, full consumption, read-only
+  remount, and teardown reconcile or release that ownership;
+- **persistence:** no new on-disk reservation metadata is introduced. Clean
+  unmount releases unused capacity. Recovery never reconstructs reservation
+  ownership from directory length; before new allocation, a reachable excess
+  chain tail is normalized to committed logical length.
 
 This deliberately keeps policy out of `appendfat_alloc_clusters()`. The
 allocator remains a bounded primitive; the ordinary write path decides when
@@ -218,6 +223,10 @@ return true `ENOSPC`. Host `mshowfat` independently counts the final FAT
 chains after the guest assertions. `tests/qemu-reserve-ahead-mutations.sh`
 also proves the gate rejects a disposable mutant that disables the bounded
 batch and allocates only one required cluster.
+
+See [mount-session ownership and recovery](mount-session-reservations.md) for
+the integrated implementation, synchronization, failure controls, and precise
+qualification limits.
 
 ## Crash boundaries to exercise before production acceptance
 

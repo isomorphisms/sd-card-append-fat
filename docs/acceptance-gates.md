@@ -122,8 +122,12 @@ The gate checks:
 in a disposable source copy to allocate only one required cluster. The QEMU
 gate must reject that mutant at its initial live-inode allocation assertion.
 
-This gate establishes bounded live-inode reserve-ahead semantics and
-near-full fallback behavior. It does not establish persistent reservation
+The integrated gate also checks explicit mount-session ownership, forced cache
+reclamation, independent simultaneous writers, orphan/replacement cleanup,
+allocation rollback, read-only remount, and reachable excess-chain recovery.
+See [the ownership and recovery account](mount-session-reservations.md) and
+[requirement ledger](reserve-complete-acceptance.tsv) for exact test boundaries.
+It does not establish persistent reservation
 metadata, Android execution, physical SD-card behavior, or arbitrary crash-cut
 correctness.
 
@@ -212,7 +216,8 @@ Neither step introduces persistent reservation metadata, a physical-contiguity
 guarantee, or a stock-vfat format extension. The automatic policy is deliberately
 part of appendfat itself rather than exposed as a stock FAT mount option.
 
-Remaining semantic work includes measuring the automatic policy's metadata
-effect, designing deterministic close/reopen lifetime separately from clean unmount,
-adding the planned crash cut points, and deciding whether persistent reservation
-needs an explicit on-disk representation.
+The integrated source measures automatic metadata effects and implements
+deterministic mount-session lifetime separately from clean unmount. Remaining
+evidence boundaries include arbitrary metadata-I/O crash cut points and physical
+tablet/media acceptance. Persistent on-disk reservations would require a
+separately justified representation and are not part of this implementation.

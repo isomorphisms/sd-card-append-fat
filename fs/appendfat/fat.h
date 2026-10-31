@@ -143,6 +143,7 @@ struct msdos_inode_info {
 	struct list_head reservation_node;
 	loff_t reservation_capacity;
 	bool reservation_owner;
+	bool allocation_verified;
 #ifdef APPENDFAT_ALLOC_METRICS
 	bool alloc_metrics;
 #endif
@@ -419,7 +420,7 @@ extern const struct file_operations appendfat_file_operations;
 extern const struct inode_operations appendfat_file_inode_operations;
 extern int appendfat_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		       struct iattr *attr);
-extern void appendfat_truncate_blocks(struct inode *inode, loff_t offset);
+extern int appendfat_truncate_blocks(struct inode *inode, loff_t offset);
 extern int appendfat_getattr(struct mnt_idmap *idmap,
 		       const struct path *path, struct kstat *stat,
 		       u32 request_mask, unsigned int flags);

@@ -420,11 +420,11 @@ static int fat_free(struct inode *inode, int skip)
 	return appendfat_free_clusters(inode, free_start);
 }
 
-void appendfat_truncate_blocks(struct inode *inode, loff_t offset)
+int appendfat_truncate_blocks(struct inode *inode, loff_t offset)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
 	const unsigned int cluster_size = sbi->cluster_size;
-	int nr_clusters;
+	int nr_clusters, err;
 
 	/*
 	 * This protects against truncating a file bigger than it was then
@@ -435,8 +435,10 @@ void appendfat_truncate_blocks(struct inode *inode, loff_t offset)
 
 	nr_clusters = (offset + (cluster_size - 1)) >> sbi->cluster_bits;
 
-	fat_free(inode, nr_clusters);
-	appendfat_flush_inodes(inode->i_sb, inode, NULL);
+	err = fat_free(inode, nr_clusters);
+	if (err)
+		return err;
+	return appendfat_flush_inodes(inode->i_sb, inode, NULL);
 }
 
 int appendfat_fileattr_get(struct dentry *dentry, struct file_kattr *fa)

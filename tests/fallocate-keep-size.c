@@ -700,7 +700,7 @@ static void reservation_regressions(const char *existing_path)
     }
     require_call(close(fd), "close concurrent parent");
     force_inode_reclaim();
-    fd = open_existing(path, O_RDWR);
+    fd = open_existing(path, O_RDWR | O_APPEND);
     require_fd_state(fd, 2 * 32 * 97, expected_clusters, "concurrent_after_reclaim");
 
     /* Replacement keeps the victim readable until its final descriptor closes. */
@@ -716,14 +716,16 @@ static void reservation_regressions(const char *existing_path)
     require_call(close(replacement_fd), "close replacement");
     require_call(unlink(path), "remove replacement regression");
 
-    /* Both faults are one-shot and precede attachment of any new live chain. */
+    /* One-shot faults precede attachment of any new live chain. */
     {
         const char *parameters[] = {
             "/sys/module/appendfat_core/parameters/test_fail_allocate",
-            "/sys/module/appendfat_core/parameters/test_fail_attach"
+            "/sys/module/appendfat_core/parameters/test_fail_attach",
+            "/sys/module/appendfat_core/parameters/test_fail_alloc_partial",
+            "/sys/module/appendfat_core/parameters/test_fail_mirror"
         };
-        const int errors[] = { ENOMEM, EIO };
-        for (iteration = 0; iteration < 2; iteration++) {
+        const int errors[] = { ENOMEM, EIO, EIO, EIO };
+        for (iteration = 0; iteration < sizeof(errors) / sizeof(errors[0]); iteration++) {
             int control;
             unsigned char byte = 0x67;
             ssize_t result;
@@ -809,6 +811,120 @@ static void reservation_auto_close_reopen(const char *path)
         exit(1);
     }
     reservation_regressions(path);
+}
+
+static uint32_t read_le32(const unsigned char *p)
+{
+    return (uint32_t)p[0] | (uint32_t)p[1] << 8 |
+           (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
+}
+
+/* Model a reachable, synced overlong chain after loss of volatile ownership.
+ * Change only a directory length on an UNMOUNTED disposable QEMU FAT32 image.
+ * This is a recovery-state fixture, separate from the real SIGKILL gate.
+ */
+static void reservation_recovered_chain(const char *mountpoint)
+{
+    unsigned char boot[512], sector[512], size_one[4] = { 1, 0, 0, 0 };
+    unsigned char value = 0x6a;
+    char path[PATH_MAX];
+    uint32_t fat_start, data_start, root_cluster, cluster, fat_sectors;
+    unsigned int bytes_per_sector, sectors_per_cluster, fats, reserved;
+    unsigned int index, part, steps;
+    unsigned long long cluster_bytes;
+    off_t entry_offset = -1;
+    int fd;
+
+    if (snprintf(path, sizeof(path), "%s/RECOVER.BIN", mountpoint) >=
+        (int)sizeof(path)) {
+        fprintf(stderr, "recovery fixture path overflow\n");
+        exit(1);
+    }
+    fd = open(path, O_CREAT | O_EXCL | O_RDWR, 0600);
+    require_call(fd, "create recovery fixture");
+    cluster_bytes = fd_cluster_bytes(fd);
+    write_bytes_fd(fd, cluster_bytes * 4, value);
+    require_call(fsync(fd), "sync recovery fixture");
+    require_call(close(fd), "close recovery fixture");
+    require_call(umount(mountpoint), "unmount before preparing recovery state");
+    fd = open_existing("/dev/vda", O_RDWR);
+    if (pread(fd, boot, sizeof(boot), 0) != sizeof(boot)) {
+        fprintf(stderr, "short recovery boot sector\n");
+        exit(1);
+    }
+    bytes_per_sector = boot[11] | (unsigned int)boot[12] << 8;
+    sectors_per_cluster = boot[13];
+    reserved = boot[14] | (unsigned int)boot[15] << 8;
+    fats = boot[16];
+    fat_sectors = read_le32(boot + 36);
+    root_cluster = read_le32(boot + 44);
+    if (bytes_per_sector != 512 || sectors_per_cluster == 0 ||
+        fat_sectors == 0 || root_cluster < 2 || boot[17] || boot[18]) {
+        fprintf(stderr, "recovery state fixture requires its FAT32 image\n");
+        exit(1);
+    }
+    fat_start = reserved;
+    data_start = reserved + fats * fat_sectors;
+    cluster = root_cluster;
+    for (steps = 0; steps < 128 && entry_offset < 0; steps++) {
+        for (part = 0; part < sectors_per_cluster && entry_offset < 0; part++) {
+            off_t offset = ((off_t)data_start +
+                            (off_t)(cluster - 2) * sectors_per_cluster + part) * 512;
+            if (pread(fd, sector, sizeof(sector), offset) != sizeof(sector)) {
+                fprintf(stderr, "short recovery directory sector\n");
+                exit(1);
+            }
+            for (index = 0; index < sizeof(sector); index += 32) {
+                if (memcmp(sector + index, "RECOVER BIN", 11) == 0 &&
+                    sector[index + 11] != 0x0f) {
+                    entry_offset = offset + index;
+                    break;
+                }
+            }
+        }
+        if (entry_offset >= 0)
+            break;
+        if (pread(fd, sector, 4, (off_t)fat_start * 512 + cluster * 4) != 4) {
+            fprintf(stderr, "short recovery directory FAT link\n");
+            exit(1);
+        }
+        cluster = read_le32(sector) & 0x0fffffff;
+        if (cluster < 2 || cluster >= 0x0ffffff8)
+            break;
+    }
+    if (entry_offset < 0 ||
+        pwrite(fd, size_one, sizeof(size_one), entry_offset + 28) != sizeof(size_one)) {
+        fprintf(stderr, "cannot prepare overlong recovery chain\n");
+        exit(1);
+    }
+    require_call(fsync(fd), "sync prepared recovery state");
+    require_call(close(fd), "close prepared recovery device");
+    require_call(mount("/dev/vda", mountpoint, "appendfat", 0, NULL),
+                 "mount recovered overlong chain");
+    fd = open_existing(path, O_RDWR | O_APPEND);
+    require_fd_state(fd, 1, 1, "recovery_directory_length_is_not_capacity");
+    write_bytes_fd(fd, cluster_bytes, value);
+    require_fd_state(fd, cluster_bytes + 1, 5, "recovery_normalizes_then_refills");
+    require_call(fsync(fd), "sync recovered append");
+    require_call(close(fd), "close recovered append");
+    require_call(umount(mountpoint), "unmount recovered append");
+    require_call(mount("/dev/vda", mountpoint, "vfat", 0, NULL),
+                 "stock mount recovered append");
+    fd = open_existing(path, O_RDONLY);
+    require_fd_state(fd, cluster_bytes + 1, 2, "recovery_stock_allocation");
+    for (index = 0; index < cluster_bytes + 1; index++) {
+        unsigned char actual;
+        if (read(fd, &actual, 1) != 1 || actual != value) {
+            fprintf(stderr, "recovery content mismatch at %u\n", index);
+            exit(1);
+        }
+    }
+    require_call(close(fd), "close stock recovery check");
+    require_call(unlink(path), "remove disposable recovery fixture");
+    require_call(umount(mountpoint), "unmount stock recovery check");
+    require_call(mount("/dev/vda", mountpoint, "appendfat", 0, NULL),
+                 "restore appendfat mount after recovery regression");
+    printf("APPENDFAT_RECOVERED_CHAIN_PASS\n");
 }
 
 static void reservation_keep_size_then_append(const char *path)
@@ -1607,6 +1723,8 @@ int main(int argc, char **argv)
             return 2;
         }
         reservation_auto_close_reopen(argv[2]);
+        /* The command is used only by the FAT32 disposable-image guest. */
+        reservation_recovered_chain("/mnt/card");
         return 0;
     }
 
