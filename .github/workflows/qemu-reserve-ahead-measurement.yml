@@ -38,6 +38,8 @@ jobs:
     steps:
       - name: Check out appendfat repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Check out pinned Linux baseline tree
         uses: actions/checkout@v4

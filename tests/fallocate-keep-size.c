@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,7 +12,10 @@
 #include <sys/syscall.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
+#include <sys/vfs.h>
 #include <sys/types.h>
+#include <sys/mount.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 static unsigned long long parse_number(const char *text)
@@ -431,8 +435,18 @@ static void write_measurement_receipt(const char *receipt_path,
 static unsigned long long fd_cluster_bytes(int fd)
 {
     struct statvfs fs;
+    struct statfs identity;
     unsigned long long cluster_bytes;
 
+    if (fstatfs(fd, &identity) != 0) {
+        perror("fstatfs FAT identity");
+        exit(1);
+    }
+    if ((unsigned long)identity.f_type != 0x4d44) {
+        fprintf(stderr, "fixture requires a mounted FAT filesystem, got magic=%lx\n",
+                (unsigned long)identity.f_type);
+        exit(1);
+    }
     if (fstatvfs(fd, &fs) != 0) {
         perror("fstatvfs");
         exit(1);
@@ -567,6 +581,196 @@ static void reserve_ahead_unlink(const char *path)
     }
 }
 
+static void require_call(int result, const char *label)
+{
+    if (result < 0) {
+        perror(label);
+        exit(1);
+    }
+}
+
+static void force_inode_reclaim(void)
+{
+    int fd;
+
+    sync();
+    fd = open_existing("/proc/sys/vm/drop_caches", O_WRONLY);
+    write_all(fd, "3\n", 2, "drop inode caches");
+    require_call(close(fd), "close drop_caches");
+}
+
+static unsigned long long free_clusters_fd(int fd)
+{
+    struct statvfs fs;
+
+    require_call(fstatvfs(fd, &fs), "read free clusters");
+    return fs.f_bfree;
+}
+
+static void require_free_clusters(int fd, unsigned long long expected,
+                                  const char *label)
+{
+    unsigned long long actual = free_clusters_fd(fd);
+
+    if (actual != expected) {
+        fprintf(stderr, "%s free clusters expected=%llu actual=%llu\n",
+                label, expected, actual);
+        exit(1);
+    }
+    printf("%s free_clusters=%llu\n", label, actual);
+}
+
+static void reservation_regressions(const char *existing_path)
+{
+    char path[PATH_MAX];
+    char replacement[PATH_MAX];
+    unsigned long long cluster_bytes, free_before, expected_clusters;
+    int fd, observer, replacement_fd, status;
+    pid_t children[2];
+    unsigned int writer, iteration;
+
+    if (snprintf(path, sizeof(path), "%s.test", existing_path) >= (int)sizeof(path) ||
+        snprintf(replacement, sizeof(replacement), "%s.new", path) >=
+        (int)sizeof(replacement)) {
+        fprintf(stderr, "reservation regression path overflow\n");
+        exit(1);
+    }
+    /* Only a freshly formatted, disposable QEMU image is used by this suite. */
+    fd = open(path, O_CREAT | O_EXCL | O_RDWR | O_APPEND, 0600);
+    require_call(fd, "create orphan regression");
+    observer = open_existing(path, O_RDONLY);
+    cluster_bytes = fd_cluster_bytes(fd);
+    free_before = free_clusters_fd(observer);
+    write_bytes_fd(fd, 1, 0x61);
+    require_call(unlink(path), "unlink open reservation");
+    /* A later allocation on the orphan must not acquire another owner ref. */
+    write_bytes_fd(fd, cluster_bytes * 4, 0x62);
+    require_call(close(fd), "close orphan writer");
+    require_fd_state(observer, cluster_bytes * 4 + 1, 5, "orphan_still_open");
+    require_call(close(observer), "close orphan reader");
+    fd = open_existing(existing_path, O_RDONLY);
+    require_free_clusters(fd, free_before, "orphan_last_close_reclaims_all");
+    require_call(close(fd), "close free-space observer");
+
+    /* Independent open descriptions append concurrently, then close in either order. */
+    fd = open(path, O_CREAT | O_EXCL | O_RDWR | O_APPEND, 0600);
+    require_call(fd, "create concurrent append regression");
+    for (writer = 0; writer < 2; writer++) {
+        children[writer] = fork();
+        require_call(children[writer], "fork append writer");
+        if (children[writer] == 0) {
+            int child_fd;
+            require_call(close(fd), "close inherited writer");
+            child_fd = open_existing(path, O_WRONLY | O_APPEND);
+            for (iteration = 0; iteration < 32; iteration++)
+                write_bytes_fd(child_fd, 97, (unsigned char)(0x63 + writer));
+            require_call(close(child_fd), "close child append writer");
+            _exit(0);
+        }
+    }
+    for (writer = 0; writer < 2; writer++) {
+        require_call(waitpid(children[writer], &status, 0), "wait append writer");
+        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+            fprintf(stderr, "concurrent append writer failed\n");
+            exit(1);
+        }
+    }
+    expected_clusters = ((2 * 32 * 97 + cluster_bytes * 4 - 1) /
+                         (cluster_bytes * 4)) * 4;
+    require_fd_state(fd, 2 * 32 * 97, expected_clusters, "concurrent_append_size");
+    {
+        unsigned char content[2 * 32 * 97];
+        unsigned int counts[2] = { 0, 0 };
+        ssize_t received = pread(fd, content, sizeof(content), 0);
+        if (received != (ssize_t)sizeof(content)) {
+            fprintf(stderr, "concurrent append content is short\n");
+            exit(1);
+        }
+        for (iteration = 0; iteration < sizeof(content); iteration++) {
+            if (content[iteration] < 0x63 || content[iteration] > 0x64) {
+                fprintf(stderr, "concurrent append content is corrupt\n");
+                exit(1);
+            }
+            counts[content[iteration] - 0x63]++;
+        }
+        if (counts[0] != 32 * 97 || counts[1] != 32 * 97) {
+            fprintf(stderr, "concurrent append lost a writer's data\n");
+            exit(1);
+        }
+    }
+    require_call(close(fd), "close concurrent parent");
+    force_inode_reclaim();
+    fd = open_existing(path, O_RDWR);
+    require_fd_state(fd, 2 * 32 * 97, expected_clusters, "concurrent_after_reclaim");
+
+    /* Replacement keeps the victim readable until its final descriptor closes. */
+    replacement_fd = open(replacement, O_CREAT | O_EXCL | O_RDWR, 0600);
+    require_call(replacement_fd, "create replacement");
+    write_bytes_fd(replacement_fd, 1, 0x65);
+    require_call(rename(replacement, path), "replace reserved victim");
+    write_bytes_fd(fd, cluster_bytes * 4, 0x66);
+    require_call(close(fd), "close replaced victim");
+    require_fd_state(replacement_fd, 1, 4, "replacement_owner_retained");
+    require_call(ftruncate(replacement_fd, 0), "truncate replacement");
+    require_fd_state(replacement_fd, 0, 0, "replacement_truncate_zero");
+    require_call(close(replacement_fd), "close replacement");
+    require_call(unlink(path), "remove replacement regression");
+
+    /* Both faults are one-shot and precede attachment of any new live chain. */
+    {
+        const char *parameters[] = {
+            "/sys/module/appendfat_core/parameters/test_fail_allocate",
+            "/sys/module/appendfat_core/parameters/test_fail_attach"
+        };
+        const int errors[] = { ENOMEM, EIO };
+        for (iteration = 0; iteration < 2; iteration++) {
+            int control;
+            unsigned char byte = 0x67;
+            ssize_t result;
+            fd = open(path, O_CREAT | O_EXCL | O_RDWR | O_APPEND, 0600);
+            require_call(fd, "create fault regression");
+            write_bytes_fd(fd, cluster_bytes * 4, byte);
+            free_before = free_clusters_fd(fd);
+            control = open_existing(parameters[iteration], O_WRONLY);
+            write_all(control, "1\n", 2, "arm one-shot allocation fault");
+            require_call(close(control), "close allocation fault control");
+            errno = 0;
+            result = write(fd, &byte, 1);
+            if (result != -1 || errno != errors[iteration]) {
+                fprintf(stderr, "fault %u expected errno=%d got result=%zd errno=%d\n",
+                        iteration, errors[iteration], result, errno);
+                exit(1);
+            }
+            require_fd_state(fd, cluster_bytes * 4, 4, "fault_preserves_old_chain");
+            require_free_clusters(fd, free_before, "fault_unwinds_new_chain");
+            write_bytes_fd(fd, 1, byte);
+            require_fd_state(fd, cluster_bytes * 4 + 1, 8, "fault_retry_refills");
+            require_call(unlink(path), "unlink fault regression");
+            require_call(close(fd), "close fault regression");
+        }
+    }
+    {
+        char mountpoint[PATH_MAX];
+        char *slash;
+        memcpy(mountpoint, existing_path, strlen(existing_path) + 1);
+        slash = strrchr(mountpoint, '/');
+        if (slash == NULL || slash == mountpoint) {
+            fprintf(stderr, "remount regression needs an absolute mount path\n");
+            exit(1);
+        }
+        *slash = '\0';
+        sync();
+        require_call(mount(NULL, mountpoint, NULL, MS_REMOUNT | MS_RDONLY, NULL),
+                     "remount reservation read-only");
+        fd = open_existing(existing_path, O_RDONLY);
+        require_fd_state(fd, 3, 1, "read_only_remount_releases_capacity");
+        require_call(close(fd), "close read-only reservation");
+        require_call(mount(NULL, mountpoint, NULL, MS_REMOUNT, NULL),
+                     "remount reservation read-write");
+    }
+    printf("APPENDFAT_RESERVATION_LIFECYCLE_PASS\n");
+}
+
 static void reservation_auto_close_reopen(const char *path)
 {
     unsigned long long cluster_bytes;
@@ -587,6 +791,7 @@ static void reservation_auto_close_reopen(const char *path)
         exit(1);
     }
 
+    force_inode_reclaim();
     writer_one = open_existing(path, O_WRONLY | O_APPEND);
     writer_two = open_existing(path, O_WRONLY | O_APPEND);
     write_bytes_fd(writer_one, 1, 0x72);
@@ -603,6 +808,7 @@ static void reservation_auto_close_reopen(const char *path)
         perror("close reservation automatic reopened");
         exit(1);
     }
+    reservation_regressions(path);
 }
 
 static void reservation_keep_size_then_append(const char *path)
