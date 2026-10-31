@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/syscall.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/types.h>
@@ -566,6 +567,196 @@ static void reserve_ahead_unlink(const char *path)
     }
 }
 
+static void reservation_auto_close_reopen(const char *path)
+{
+    unsigned long long cluster_bytes;
+    int fd;
+    int writer_one;
+    int writer_two;
+
+    fd = open(path, O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
+    if (fd < 0) {
+        perror(path);
+        exit(1);
+    }
+    cluster_bytes = fd_cluster_bytes(fd);
+    write_bytes_fd(fd, 1, 0x71);
+    require_fd_state(fd, 1, 4, "reservation_auto_initial");
+    if (close(fd) != 0) {
+        perror("close reservation automatic initial");
+        exit(1);
+    }
+
+    writer_one = open_existing(path, O_WRONLY | O_APPEND);
+    writer_two = open_existing(path, O_WRONLY | O_APPEND);
+    write_bytes_fd(writer_one, 1, 0x72);
+    write_bytes_fd(writer_two, 1, 0x73);
+    require_fd_state(writer_two, 3, 4, "reservation_auto_multiple_writers");
+    if (close(writer_one) != 0 || close(writer_two) != 0) {
+        perror("close reservation automatic writers");
+        exit(1);
+    }
+
+    fd = open_existing(path, O_RDONLY);
+    require_fd_state(fd, 3, 4, "reservation_auto_after_reopen");
+    if (cluster_bytes == 0 || close(fd) != 0) {
+        perror("close reservation automatic reopened");
+        exit(1);
+    }
+}
+
+static void reservation_keep_size_then_append(const char *path)
+{
+    unsigned long long cluster_bytes;
+    unsigned long long two_clusters;
+    int fd;
+
+    fd = open(path, O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
+    if (fd < 0) {
+        perror(path);
+        exit(1);
+    }
+    cluster_bytes = fd_cluster_bytes(fd);
+    if (cluster_bytes == 0 ||
+        cluster_bytes > (unsigned long long)INT64_MAX / 2) {
+        fprintf(stderr, "invalid keep-size session geometry\n");
+        exit(1);
+    }
+    two_clusters = cluster_bytes * 2;
+    if (fallocate(fd, FALLOC_FL_KEEP_SIZE, 0, (off_t)two_clusters) != 0) {
+        perror("fallocate keep-size session");
+        exit(1);
+    }
+    require_fd_state(fd, 0, 2, "reservation_keep_size_initial");
+    if (close(fd) != 0) {
+        perror("close keep-size initial");
+        exit(1);
+    }
+
+    fd = open_existing(path, O_WRONLY | O_APPEND);
+    write_bytes_fd(fd, 1, 0x74);
+    require_fd_state(fd, 1, 2, "reservation_keep_size_consuming");
+    write_bytes_fd(fd, two_clusters - 1, 0x75);
+    require_fd_state(fd, two_clusters, 2, "reservation_keep_size_full");
+    write_bytes_fd(fd, 1, 0x76);
+    require_fd_state(fd, two_clusters + 1, 6,
+                     "reservation_keep_size_auto_refill");
+    if (close(fd) != 0) {
+        perror("close keep-size automatic refill");
+        exit(1);
+    }
+
+    fd = open_existing(path, O_RDONLY);
+    require_fd_state(fd, two_clusters + 1, 6,
+                     "reservation_keep_size_after_reopen");
+    if (close(fd) != 0) {
+        perror("close keep-size reopened");
+        exit(1);
+    }
+}
+
+static void reservation_o_trunc(const char *path)
+{
+    int fd = open(path, O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
+
+    if (fd < 0) {
+        perror(path);
+        exit(1);
+    }
+    write_bytes_fd(fd, 1, 0x77);
+    require_fd_state(fd, 1, 4, "reservation_o_trunc_before");
+    if (close(fd) != 0) {
+        perror("close reservation O_TRUNC before");
+        exit(1);
+    }
+
+    fd = open_existing(path, O_WRONLY | O_TRUNC);
+    require_fd_state(fd, 0, 0, "reservation_o_trunc_after");
+    if (close(fd) != 0) {
+        perror("close reservation O_TRUNC");
+        exit(1);
+    }
+}
+
+static void reservation_rename(const char *old_path, const char *new_path)
+{
+    int fd = open(old_path, O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
+
+    if (fd < 0) {
+        perror(old_path);
+        exit(1);
+    }
+    write_bytes_fd(fd, 1, 0x78);
+    require_fd_state(fd, 1, 4, "reservation_rename_before");
+    if (close(fd) != 0) {
+        perror("close reservation rename before");
+        exit(1);
+    }
+    if (rename(old_path, new_path) != 0) {
+        perror("rename reservation");
+        exit(1);
+    }
+    fd = open_existing(new_path, O_RDONLY);
+    require_fd_state(fd, 1, 4, "reservation_rename_after");
+    if (close(fd) != 0) {
+        perror("close reservation rename after");
+        exit(1);
+    }
+}
+
+static void reservation_exchange(const char *first_path, const char *second_path)
+{
+    unsigned long long cluster_bytes;
+    int fd;
+
+    fd = open(first_path, O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
+    if (fd < 0) {
+        perror(first_path);
+        exit(1);
+    }
+    write_bytes_fd(fd, 1, 0x79);
+    require_fd_state(fd, 1, 4, "reservation_exchange_first_before");
+    if (close(fd) != 0) {
+        perror("close reservation exchange first");
+        exit(1);
+    }
+
+    fd = open(second_path, O_CREAT | O_TRUNC | O_RDWR, 0666);
+    if (fd < 0) {
+        perror(second_path);
+        exit(1);
+    }
+    cluster_bytes = fd_cluster_bytes(fd);
+    if (fallocate(fd, FALLOC_FL_KEEP_SIZE, 0, (off_t)(cluster_bytes * 2)) != 0) {
+        perror("fallocate reservation exchange");
+        exit(1);
+    }
+    require_fd_state(fd, 0, 2, "reservation_exchange_second_before");
+    if (close(fd) != 0) {
+        perror("close reservation exchange second");
+        exit(1);
+    }
+
+    if (syscall(SYS_renameat2, AT_FDCWD, first_path, AT_FDCWD, second_path,
+                RENAME_EXCHANGE) != 0) {
+        perror("renameat2 RENAME_EXCHANGE reservation");
+        exit(1);
+    }
+
+    fd = open_existing(first_path, O_RDONLY);
+    require_fd_state(fd, 0, 2, "reservation_exchange_first_after");
+    if (close(fd) != 0) {
+        perror("close reservation exchange first after");
+        exit(1);
+    }
+    fd = open_existing(second_path, O_RDONLY);
+    require_fd_state(fd, 1, 4, "reservation_exchange_second_after");
+    if (close(fd) != 0) {
+        perror("close reservation exchange second after");
+        exit(1);
+    }
+}
+
 static void reserve_ahead_near_full(const char *path)
 {
     unsigned char byte = 69;
@@ -1026,6 +1217,8 @@ int main(int argc, char **argv)
 			"usage: %s keep|expect-enospc|size|truncate|"
 			"reserve|reserve-clusters|extend-clusters|append|"
 			"reserve-ahead-sequence|reserve-ahead-truncate|reserve-ahead-unlink|"
+			"reservation-auto-close-reopen|reservation-keep-size-append|"
+			"reservation-o-trunc|reservation-rename|reservation-exchange|"
 			"reserve-ahead-near-full|check-reserve-ahead|check-near-full|"
 			"fill-leave-clusters|append-measure|check-fill|minimal-blocks|check|blocks ...\n",
                 argv[0]);
@@ -1197,6 +1390,56 @@ int main(int argc, char **argv)
             return 2;
         }
         reserve_ahead_unlink(argv[2]);
+        return 0;
+    }
+
+    if (strcmp(command, "reservation-auto-close-reopen") == 0) {
+        if (argc != 3) {
+            fprintf(stderr,
+                    "usage: %s reservation-auto-close-reopen PATH\n",
+                    argv[0]);
+            return 2;
+        }
+        reservation_auto_close_reopen(argv[2]);
+        return 0;
+    }
+
+    if (strcmp(command, "reservation-keep-size-append") == 0) {
+        if (argc != 3) {
+            fprintf(stderr,
+                    "usage: %s reservation-keep-size-append PATH\n",
+                    argv[0]);
+            return 2;
+        }
+        reservation_keep_size_then_append(argv[2]);
+        return 0;
+    }
+
+    if (strcmp(command, "reservation-o-trunc") == 0) {
+        if (argc != 3) {
+            fprintf(stderr, "usage: %s reservation-o-trunc PATH\n", argv[0]);
+            return 2;
+        }
+        reservation_o_trunc(argv[2]);
+        return 0;
+    }
+
+    if (strcmp(command, "reservation-rename") == 0) {
+        if (argc != 4) {
+            fprintf(stderr, "usage: %s reservation-rename OLD NEW\n", argv[0]);
+            return 2;
+        }
+        reservation_rename(argv[2], argv[3]);
+        return 0;
+    }
+
+    if (strcmp(command, "reservation-exchange") == 0) {
+        if (argc != 4) {
+            fprintf(stderr,
+                    "usage: %s reservation-exchange FIRST SECOND\n", argv[0]);
+            return 2;
+        }
+        reservation_exchange(argv[2], argv[3]);
         return 0;
     }
 

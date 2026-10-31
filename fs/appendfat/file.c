@@ -628,6 +628,7 @@ int appendfat_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		truncate_setsize(inode, attr->ia_size);
 		appendfat_truncate_blocks(inode, attr->ia_size);
 		up_write(&MSDOS_I(inode)->truncate_lock);
+		appendfat_reservation_reconcile(inode);
 	}
 
 	/*

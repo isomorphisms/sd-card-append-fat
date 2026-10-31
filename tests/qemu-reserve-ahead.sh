@@ -12,6 +12,7 @@ linux_tree=$1
 . "$repo/tests/qemu-common.sh"
 
 appendfat_require_commands awk busybox cc cpio fsck.fat mkfs.fat mshowfat qemu-system-x86_64 timeout truncate
+export APPENDFAT_RESERVATION_METRICS=1
 appendfat_prepare_linux "$repo" "$linux_tree" builtin
 
 appendfat_check_fat_chain()
@@ -95,6 +96,11 @@ set -e
 
 cat "$qemu_log"
 grep -F APPENDFAT_QEMU_RESERVE_AHEAD_PASS "$qemu_log"
+grep -F 'APPENDFAT_RESERVATION event=claim' "$qemu_log"
+grep -F 'APPENDFAT_RESERVATION event=release' "$qemu_log"
+grep -F 'APPENDFAT_RESERVATION event=shutdown-release' "$qemu_log"
+grep -F 'APPENDFAT_RESERVATION event=shutdown-release' "$qemu_log" |
+    grep -F 'owners=0 owner_refs=0'
 
 if [ "$qemu_status" -ne 0 ] && [ "$qemu_status" -ne 124 ]; then
     printf '%s\n' "qemu exited unexpectedly: $qemu_status" >&2
@@ -105,6 +111,10 @@ fi
 # checks live-inode accounting before remount; these checks deliberately do
 # not rely on stat output and also cover truncate and unlink cleanup.
 appendfat_check_fat_chain "$normal_image" ::ahead.bin 5
+appendfat_check_fat_chain "$normal_image" ::session-auto.bin 1
+appendfat_check_fat_chain "$normal_image" ::session-mixed.bin 3
+appendfat_check_fat_chain "$normal_image" ::session-rename-new.bin 1
+appendfat_check_fat_chain "$normal_image" ::session-exchange-b.bin 1
 appendfat_check_fat_chain "$normal_image" ::truncate.bin 1
 if mshowfat -i "$normal_image" ::unlink.bin; then
     printf '%s\n' 'unlink.bin still has a FAT chain' >&2
