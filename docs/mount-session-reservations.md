@@ -96,6 +96,9 @@ virtio writes/sectors, and final length/allocation. CPU and metadata-processing
 reductions must be reported separately from block-device writes. No NAND wear,
 controller-placement, or physical-contiguity claim follows from this gate.
 
+The [integrated local A/B receipt](reserve-ahead-integrated-measurements.md)
+records both repeats, all counters, and image/kernel/initramfs digests.
+
 The requirement-to-test ledger is
 [`reserve-complete-acceptance.tsv`](reserve-complete-acceptance.tsv). Current
 head, CI URLs, measurements, and remaining blockers belong in the final

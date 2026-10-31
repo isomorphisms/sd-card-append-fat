@@ -804,6 +804,12 @@ static void reservation_auto_close_reopen(const char *path)
         exit(1);
     }
 
+    writer_one = open_existing(path, O_WRONLY | O_APPEND);
+    writer_two = open_existing(path, O_WRONLY | O_APPEND);
+    require_call(close(writer_two), "close second writer first");
+    require_fd_state(writer_one, 3, 4, "reservation_reverse_close_order");
+    require_call(close(writer_one), "close first writer last");
+
     fd = open_existing(path, O_RDONLY);
     require_fd_state(fd, 3, 4, "reservation_auto_after_reopen");
     if (cluster_bytes == 0 || close(fd) != 0) {
@@ -832,6 +838,7 @@ static void reservation_recovered_chain(const char *mountpoint)
     unsigned int bytes_per_sector, sectors_per_cluster, fats, reserved;
     unsigned int index, part, steps;
     unsigned long long cluster_bytes;
+    struct stat device_identity, file_identity;
     off_t entry_offset = -1;
     int fd;
 
@@ -842,6 +849,13 @@ static void reservation_recovered_chain(const char *mountpoint)
     }
     fd = open(path, O_CREAT | O_EXCL | O_RDWR, 0600);
     require_call(fd, "create recovery fixture");
+    require_call(stat("/dev/vda", &device_identity), "identify disposable recovery device");
+    require_call(fstat(fd, &file_identity), "identify disposable recovery file");
+    if (!S_ISBLK(device_identity.st_mode) ||
+        device_identity.st_rdev != file_identity.st_dev) {
+        fprintf(stderr, "recovery fixture is not on the specified guest block device\n");
+        exit(1);
+    }
     cluster_bytes = fd_cluster_bytes(fd);
     write_bytes_fd(fd, cluster_bytes * 4, value);
     require_call(fsync(fd), "sync recovery fixture");
