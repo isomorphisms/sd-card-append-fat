@@ -23,5 +23,5 @@ printf 'prefix' > /mnt/card/reserved.bin
 sync
 umount /mnt/card
 
-echo APPENDFAT_KEEP_SIZE_RESERVE_PASS
+/bin/fallocate-keep-size kernel-marker APPENDFAT_KEEP_SIZE_RESERVE_PASS
 poweroff -f

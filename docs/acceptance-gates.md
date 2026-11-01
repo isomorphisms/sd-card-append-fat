@@ -84,8 +84,52 @@ present by the remount check. Keep-size allocation can still be evaluated as
 a mounted-session batching mechanism, but persistence requires a different
 design or a separate on-disk representation.
 
-The same fixture remains green with reservation batching. It does not by
-itself prove a future automatic reserve-ahead policy.
+The same fixture remains green with reservation batching. Once automatic
+reserve-ahead is enabled, exact live allocation during ordinary growth belongs
+to the reserve-ahead gate rather than this keep-size compatibility gate. The
+stock-vfat remount must still reduce allocation to the clusters required by
+logical size.
+
+
+### Automatic reserve-ahead
+
+`tests/qemu-reserve-ahead.sh` exercises the first automatic append policy.
+When an ordinary write reaches the end of allocated capacity, appendfat asks
+for one bounded `MAX_BUF_PER_PAGE / 2` cluster batch. On the pinned 4 KiB-page
+QEMU build this is four clusters. Refill happens only after that capacity is
+fully consumed.
+
+The gate checks:
+
+- a one-byte write to an empty FAT32 file allocates four filesystem clusters,
+  with cluster byte size discovered from `stat` rather than hard-coded;
+- writes consuming the remainder of that capacity do not allocate again;
+- crossing the next cluster boundary refills by four clusters;
+- truncate releases unused speculative clusters;
+- unlink leaves no surviving file;
+- a clean stock-vfat remount preserves exact logical contents and sees only
+  the clusters required by logical size, so unused reserve-ahead capacity is
+  not claimed to persist across unmount;
+- host `mshowfat` independently counts the final FAT chains for the grown,
+  truncated, unlinked, and near-full files rather than inferring allocation
+  solely from `stat`;
+- on a FAT16 image with exactly two free data clusters, the four-cluster
+  speculative request falls back to one required cluster, then the final
+  required cluster, and returns `ENOSPC` only when no cluster remains;
+- host `fsck.fat -n -v` passes on both resulting images.
+
+`tests/qemu-reserve-ahead-mutations.sh` also changes the ordinary write path
+in a disposable source copy to allocate only one required cluster. The QEMU
+gate must reject that mutant at its initial live-inode allocation assertion.
+
+The integrated gate also checks explicit mount-session ownership, forced cache
+reclamation, independent simultaneous writers, orphan/replacement cleanup,
+allocation rollback, read-only remount, and reachable excess-chain recovery.
+See [the ownership and recovery account](mount-session-reservations.md) and
+[requirement ledger](reserve-complete-acceptance.tsv) for exact test boundaries.
+It does not establish persistent reservation
+metadata, Android execution, physical SD-card behavior, or arbitrary crash-cut
+correctness.
 
 ### Abrupt power cut after durable writes
 
@@ -160,16 +204,20 @@ power interruption of real media remain separate physical procedures.
 
 ## Append-arena semantic gate
 
-The first append-arena change is limited to batching explicit keep-size
-reservations. It adds no automatic reserve-ahead policy, persistence across
-unmount, mount option, contiguous-cluster guarantee, or new on-disk metadata.
-The new explicit-reservation path must keep the keep-size compatibility fixture
-green and preserve the original ENOSPC result, including already attached
-clusters when the request cannot be fully satisfied.
+Appendfat now has two distinct append-arena steps:
 
-At minimum a future automatic reserve-ahead policy needs explicit tests for its
-initial reservation, refill threshold and size, maximum unused reservation,
-free-space floor, ENOSPC behavior, truncate/unlink behavior, enable/disable
-mount option, and persistence across close/reopen and unmount/remount. Those
-tests should be written against the concrete policy rather than inventing an
-interface before implementation.
+1. explicit `FALLOC_FL_KEEP_SIZE` reservations are allocated in bounded
+   multi-cluster batches;
+2. ordinary writes automatically reserve one bounded batch when existing
+   allocated capacity is exhausted, falling back to the required single
+   cluster near ENOSPC.
+
+Neither step introduces persistent reservation metadata, a physical-contiguity
+guarantee, or a stock-vfat format extension. The automatic policy is deliberately
+part of appendfat itself rather than exposed as a stock FAT mount option.
+
+The integrated source measures automatic metadata effects and implements
+deterministic mount-session lifetime separately from clean unmount. Remaining
+evidence boundaries include arbitrary metadata-I/O crash cut points and physical
+tablet/media acceptance. Persistent on-disk reservations would require a
+separately justified representation and are not part of this implementation.

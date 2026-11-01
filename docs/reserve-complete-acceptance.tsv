@@ -1,0 +1,26 @@
+requirement	implementation_or_fixture	evidence_boundary
+initial four-cluster reservation	tests/fallocate-keep-size.c:reserve_ahead_sequence; tests/qemu-reserve-ahead.sh	Pinned Linux/QEMU; FAT identity required
+consume and refill	tests/fallocate-keep-size.c:reserve_ahead_sequence	Live inode allocation; four then eight clusters
+near-full and required-cluster ENOSPC	tests/fallocate-keep-size.c:reserve_ahead_near_full	FAT16 image with exactly two free data clusters
+explicit and automatic reservation	tests/fallocate-keep-size.c:reservation_keep_size_then_append	One mount owner shared by both allocation paths
+forced inode reclaim and close ordering	tests/fallocate-keep-size.c:reservation_auto_close_reopen	Synchronized drop_caches with descriptors closed
+simultaneous writers	tests/fallocate-keep-size.c:reservation_regressions	Independent append descriptions; exact size and per-writer byte counts
+truncate and O_TRUNC	tests/fallocate-keep-size.c:reserve_ahead_truncate; reservation_o_trunc	Live capacity and stock-vfat remount
+unlink and replacement	tests/fallocate-keep-size.c:reservation_regressions	Open orphan refill; final-close free-cluster accounting
+rename and exchange	tests/fallocate-keep-size.c:reservation_rename; reservation_exchange	Ownership follows inode
+allocation and attachment failure	tests/fallocate-keep-size.c:reservation_regressions	Test-only one-shot faults including post-tail-mutation rollback; old chain preserved; new chain unwound; retry
+read-only remount	tests/fallocate-keep-size.c:reservation_regressions	Capacity released before read-only state
+superblock teardown	tests/qemu-reserve-ahead.sh	Shutdown trace owners=0 owner_refs=0; embedded inode state
+reachable excess-tail recovery	tests/fallocate-keep-size.c:reservation_recovered_chain	Synthetic on-disk recovery state on an unmounted disposable FAT32 image
+abrupt power interruption	tests/qemu-power-cut.sh	Real QEMU SIGKILL after sync; stock read; explicit disposable-image recovery
+FAT12 FAT16 FAT32 and mount options	tests/qemu-fat-matrix.sh	Representative mount options; not every possible option
+keep-size and ENOSPC	tests/qemu-keep-size.sh; tests/qemu-keep-size-characterization.sh	Explicit reservation behavior and clean-unmount release
+stock FAT compatibility	tests/qemu-fat-equivalence.sh; tests/qemu-reserve-ahead.sh	Stock mounts, exact content, independent FAT-chain counts, fsck.fat
+module load unload reload	tests/qemu-module-load.sh	Pinned QEMU kernel only
+negative reserve-ahead oracle	tests/qemu-reserve-ahead-mutations.sh	Disabled batching must fail the initial assertion
+performance A/B and repeats	tests/qemu-reserve-ahead-measurement.sh	All requested counters; identical starting images; policy 1 versus 4
+measurement parsing controls	tests/qemu-reserve-ahead-measurement-parser.sh	Reject missing/duplicate/cross-run/truncated evidence
+success-marker serialization	tests/fallocate-keep-size.c:write_kernel_marker	One kernel-log record; avoids printk splitting userspace PASS markers
+exact-head CI	.github/workflows/qemu-*.yml	Checkout the PR head, not a synthetic merge revision
+arbitrary metadata-I/O crash cut points	NOT QUALIFIED	No atomicity or successful rollback-on-failing-media claim
+TAB_P10 and physical SD-card	NOT RUN	No connected physical target or destructive-operation authority

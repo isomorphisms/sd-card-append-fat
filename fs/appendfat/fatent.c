@@ -6,7 +6,15 @@
 #include <linux/blkdev.h>
 #include <linux/sched/signal.h>
 #include <linux/backing-dev-defs.h>
+#include <linux/module.h>
 #include "fat.h"
+
+#ifdef APPENDFAT_TEST_FAULTS
+static int test_fail_alloc_partial;
+static int test_fail_mirror;
+module_param(test_fail_alloc_partial, int, 0600);
+module_param(test_fail_mirror, int, 0600);
+#endif
 
 struct fatent_operations {
 	void (*ent_blocknr)(struct super_block *, int, int *, sector_t *);
@@ -535,6 +543,12 @@ int appendfat_alloc_clusters(struct inode *inode, int *cluster, int nr_cluster)
 
 				cluster[idx_clus] = entry;
 				idx_clus++;
+#ifdef APPENDFAT_TEST_FAULTS
+				if (idx_clus == 2 && xchg(&test_fail_alloc_partial, 0)) {
+					err = -EIO;
+					goto out;
+				}
+#endif
 				if (idx_clus == nr_cluster)
 					goto out;
 
@@ -562,6 +576,10 @@ out:
 	if (!err) {
 		if (inode_needs_sync(inode))
 			err = appendfat_sync_bhs(bhs, nr_bhs);
+#ifdef APPENDFAT_TEST_FAULTS
+		if (!err && xchg(&test_fail_mirror, 0))
+			err = -EIO;
+#endif
 		if (!err)
 			err = fat_mirror_bhs(sb, bhs, nr_bhs);
 	}

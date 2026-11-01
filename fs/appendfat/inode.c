@@ -101,19 +101,272 @@ static struct fat_floppy_defaults {
 },
 };
 
-int appendfat_add_cluster(struct inode *inode)
-{
-	int err, cluster;
+#ifndef APPENDFAT_APPEND_AHEAD_CLUSTERS
+#define APPENDFAT_APPEND_AHEAD_CLUSTERS	(MAX_BUF_PER_PAGE / 2)
+#endif
 
-	err = appendfat_alloc_clusters(inode, &cluster, 1);
+#ifdef APPENDFAT_TEST_FAULTS
+/* One-shot faults, available only in explicitly instrumented test builds. */
+static int test_fail_allocate;
+static int test_fail_attach;
+module_param(test_fail_allocate, int, 0600);
+module_param(test_fail_attach, int, 0600);
+#endif
+
+/*
+ * A reservation is deliberately in-memory only.  The list's reference keeps
+ * the inode alive across ordinary close/reopen, while the FAT chain remains
+ * owned by the live inode.  Mount never infers this state from allocation
+ * past EOF: only a successful appendfat allocation claims an owner.
+ */
+static loff_t appendfat_reservation_logical_capacity(struct inode *inode)
+{
+	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
+
+	return round_up(i_size_read(inode), (loff_t)sbi->cluster_size);
+}
+
+static loff_t appendfat_reservation_allocated_capacity(struct inode *inode)
+{
+	return (loff_t)inode->i_blocks << 9;
+}
+
+#ifdef APPENDFAT_RESERVATION_METRICS
+static void appendfat_reservation_trace(struct inode *inode, const char *event,
+					loff_t capacity)
+{
+	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
+
+	pr_info("APPENDFAT_RESERVATION event=%s i_pos=%lld owners=%u owner_refs=%u capacity=%lld allocated=%lld logical=%lld\n",
+		event, (long long)MSDOS_I(inode)->i_pos,
+		sbi->reservation_inode_count, sbi->reservation_inode_count,
+		(long long)capacity,
+		(long long)appendfat_reservation_allocated_capacity(inode),
+		(long long)appendfat_reservation_logical_capacity(inode));
+}
+#else
+static inline void appendfat_reservation_trace(struct inode *inode,
+					      const char *event,
+					      loff_t capacity)
+{
+}
+#endif
+
+static void appendfat_reservation_claim(struct inode *inode)
+{
+	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
+	struct msdos_inode_info *ei = MSDOS_I(inode);
+	loff_t capacity = appendfat_reservation_allocated_capacity(inode);
+
+	/* An orphan must reach ordinary last-close eviction without a list ref. */
+	if (!inode->i_nlink || !S_ISREG(inode->i_mode))
+		return;
+
+	mutex_lock(&sbi->reservation_lock);
+	if (!ei->reservation_owner) {
+		ihold(inode);
+		list_add_tail(&ei->reservation_node, &sbi->reservation_inodes);
+		ei->reservation_owner = true;
+		sbi->reservation_inode_count++;
+	}
+	ei->reservation_capacity = capacity;
+	appendfat_reservation_trace(inode, "claim", capacity);
+	mutex_unlock(&sbi->reservation_lock);
+}
+
+/*
+ * Drop the one superblock ownership reference if the inode no longer has
+ * allocation beyond logical EOF.  Callers hold their normal inode/write
+ * serialization; the list lock only protects ownership and list balance.
+ */
+void appendfat_reservation_reconcile(struct inode *inode)
+{
+	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
+	struct msdos_inode_info *ei = MSDOS_I(inode);
+	loff_t capacity;
+	bool drop_owner = false;
+
+	mutex_lock(&sbi->reservation_lock);
+	if (!ei->reservation_owner)
+		goto out_unlock;
+
+	capacity = appendfat_reservation_allocated_capacity(inode);
+	if (inode->i_nlink &&
+	    capacity > appendfat_reservation_logical_capacity(inode)) {
+		ei->reservation_capacity = capacity;
+		appendfat_reservation_trace(inode, "retain", capacity);
+		goto out_unlock;
+	}
+
+	list_del_init(&ei->reservation_node);
+	ei->reservation_owner = false;
+	ei->reservation_capacity = 0;
+	WARN_ON_ONCE(!sbi->reservation_inode_count);
+	if (sbi->reservation_inode_count)
+		sbi->reservation_inode_count--;
+	appendfat_reservation_trace(inode, "release", capacity);
+	drop_owner = true;
+out_unlock:
+	mutex_unlock(&sbi->reservation_lock);
+
+	if (drop_owner)
+		iput(inode);
+}
+EXPORT_SYMBOL_GPL(appendfat_reservation_reconcile);
+
+/*
+ * Discard only unused capacity.  Logical data remains owned by a still-open
+ * unlinked file and follows the ordinary FAT eviction path.
+ */
+void appendfat_reservation_release(struct inode *inode)
+{
+	struct msdos_inode_info *ei = MSDOS_I(inode);
+	bool owner;
+
+	mutex_lock(&MSDOS_SB(inode->i_sb)->reservation_lock);
+	owner = ei->reservation_owner;
+	mutex_unlock(&MSDOS_SB(inode->i_sb)->reservation_lock);
+	if (!owner)
+		return;
+
+	/* Unlink and replacement rename already hold the victim inode lock. */
+	down_write(&ei->truncate_lock);
+	if (appendfat_reservation_allocated_capacity(inode) >
+	    appendfat_reservation_logical_capacity(inode))
+		appendfat_truncate_blocks(inode, i_size_read(inode));
+	up_write(&ei->truncate_lock);
+	appendfat_reservation_reconcile(inode);
+}
+EXPORT_SYMBOL_GPL(appendfat_reservation_release);
+
+static void appendfat_release_all_reservations(struct super_block *sb)
+{
+	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+	struct msdos_inode_info *ei;
+	struct inode *inode;
+	loff_t capacity;
+
+	for (;;) {
+		mutex_lock(&sbi->reservation_lock);
+		if (list_empty(&sbi->reservation_inodes)) {
+			mutex_unlock(&sbi->reservation_lock);
+			break;
+		}
+
+		ei = list_first_entry(&sbi->reservation_inodes,
+				      struct msdos_inode_info, reservation_node);
+		inode = &ei->vfs_inode;
+		capacity = ei->reservation_capacity;
+		list_del_init(&ei->reservation_node);
+		ei->reservation_owner = false;
+		ei->reservation_capacity = 0;
+		WARN_ON_ONCE(!sbi->reservation_inode_count);
+		if (sbi->reservation_inode_count)
+			sbi->reservation_inode_count--;
+		appendfat_reservation_trace(inode, "shutdown-release", capacity);
+		mutex_unlock(&sbi->reservation_lock);
+
+		inode_lock(inode);
+		down_write(&ei->truncate_lock);
+		if (appendfat_reservation_allocated_capacity(inode) >
+		    appendfat_reservation_logical_capacity(inode))
+			appendfat_truncate_blocks(inode, i_size_read(inode));
+		up_write(&ei->truncate_lock);
+		inode_unlock(inode);
+		iput(inode);
+	}
+
+	WARN_ON_ONCE(sbi->reservation_inode_count);
+}
+
+void appendfat_kill_sb(struct super_block *sb)
+{
+	/* get_tree_bdev uses ->kill_sb for both normal and failed teardown. */
+	if (sb->s_fs_info)
+		appendfat_release_all_reservations(sb);
+	kill_block_super(sb);
+}
+EXPORT_SYMBOL_GPL(appendfat_kill_sb);
+
+/*
+ * A power cut may leave a reachable FAT chain longer than the committed
+ * directory length.  i_blocks reconstructed from that length is not evidence
+ * of a reservation.  Before allocating on a newly instantiated regular inode,
+ * compare the real chain and discard only its uncommitted tail.  Otherwise a
+ * refill would attach after the old tail while accounting from logical EOF.
+ * Unreachable chains still require ordinary offline FAT recovery.
+ */
+static int appendfat_verify_allocation(struct inode *inode)
+{
+	struct msdos_inode_info *ei = MSDOS_I(inode);
+	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
+	int err, fclus, dclus;
+	unsigned long long expected;
+
+	if (ei->allocation_verified)
+		return 0;
+	expected = inode->i_blocks >> (sbi->cluster_bits - 9);
+	if (ei->i_start) {
+		err = appendfat_get_cluster(inode, FAT_ENT_EOF, &fclus, &dclus);
+		if (err < 0)
+			return err;
+		if ((unsigned long long)fclus + 1 < expected)
+			return -EIO;
+		if ((unsigned long long)fclus + 1 > expected) {
+			down_write(&ei->truncate_lock);
+			err = appendfat_truncate_blocks(inode, i_size_read(inode));
+			up_write(&ei->truncate_lock);
+			if (err)
+				return err;
+		}
+	} else if (expected) {
+		return -EIO;
+	}
+	ei->allocation_verified = true;
+	return 0;
+}
+
+int appendfat_add_clusters(struct inode *inode, int nr_cluster)
+{
+	int clusters[MAX_BUF_PER_PAGE / 2];
+	int err;
+
+	if (nr_cluster <= 0 || nr_cluster > ARRAY_SIZE(clusters))
+		return -EINVAL;
+
+	err = appendfat_verify_allocation(inode);
 	if (err)
 		return err;
-	/* FIXME: this cluster should be added after data of this
-	 * cluster is writed */
-	err = appendfat_chain_add(inode, cluster, 1);
+
+#ifdef APPENDFAT_TEST_FAULTS
+	if (xchg(&test_fail_allocate, 0))
+		return -ENOMEM;
+#endif
+	err = appendfat_alloc_clusters(inode, clusters, nr_cluster);
 	if (err)
-		appendfat_free_clusters(inode, cluster);
+		return err;
+
+	/*
+	 * The allocator has already linked the new clusters to each other.
+	 * Attach that prepared chain to the inode once.
+	 */
+#ifdef APPENDFAT_TEST_FAULTS
+	if (xchg(&test_fail_attach, 0))
+		err = -EIO;
+	else
+#endif
+		err = appendfat_chain_add(inode, clusters[0], nr_cluster);
+	if (err)
+		appendfat_free_clusters(inode, clusters[0]);
+	else
+		appendfat_reservation_claim(inode);
+
 	return err;
+}
+
+int appendfat_add_cluster(struct inode *inode)
+{
+	return appendfat_add_clusters(inode, 1);
 }
 
 static inline int __fat_get_block(struct inode *inode, sector_t iblock,
@@ -151,8 +404,33 @@ static inline int __fat_get_block(struct inode *inode, sector_t iblock,
 	 * 2) not part of fallocate region
 	 */
 	if (!offset && !(iblock < last_block)) {
-		/* TODO: multiple cluster allocation would be desirable. */
-		err = appendfat_add_cluster(inode);
+		/*
+		 * The write has consumed all currently allocated capacity.
+		 * Reserve one bounded allocator batch ahead of the writer so
+		 * subsequent cluster crossings do not immediately mutate the FAT.
+		 *
+		 * Reserve-ahead is opportunistic.  If there is not enough free
+		 * space for the whole batch, preserve ordinary FAT write behavior
+		 * by retrying with the single cluster the current write needs.
+		 */
+#ifdef APPENDFAT_ALLOC_METRICS
+		MSDOS_I(inode)->alloc_metrics = true;
+		pr_info("APPENDFAT_APPEND_METRIC reserve_start requested_clusters=%lu allocated_clusters=%llu\n",
+			(unsigned long)APPENDFAT_APPEND_AHEAD_CLUSTERS,
+			(unsigned long long)(inode->i_blocks >>
+					     (sbi->cluster_bits - 9)));
+#endif
+		err = appendfat_add_clusters(inode,
+					     APPENDFAT_APPEND_AHEAD_CLUSTERS);
+		if (err == -ENOSPC)
+			err = appendfat_add_cluster(inode);
+#ifdef APPENDFAT_ALLOC_METRICS
+		pr_info("APPENDFAT_APPEND_METRIC reserve_end result=%d allocated_clusters=%llu\n",
+			err,
+			(unsigned long long)(inode->i_blocks >>
+					     (sbi->cluster_bits - 9)));
+		MSDOS_I(inode)->alloc_metrics = false;
+#endif
 		if (err)
 			return err;
 	}
@@ -218,6 +496,7 @@ static void fat_write_failed(struct address_space *mapping, loff_t to)
 		truncate_pagecache(inode, inode->i_size);
 		appendfat_truncate_blocks(inode, inode->i_size);
 	}
+	appendfat_reservation_reconcile(inode);
 }
 
 static int fat_write_begin(const struct kiocb *iocb,
@@ -245,6 +524,7 @@ static int fat_write_end(const struct kiocb *iocb,
 	err = generic_write_end(iocb, mapping, pos, len, copied, folio, fsdata);
 	if (err < len)
 		fat_write_failed(mapping, pos + len);
+	appendfat_reservation_reconcile(inode);
 	if (!(err < 0) && !(MSDOS_I(inode)->i_attrs & ATTR_ARCH)) {
 		appendfat_truncate_time(inode, NULL, FAT_UPDATE_CMTIME);
 		MSDOS_I(inode)->i_attrs |= ATTR_ARCH;
@@ -284,6 +564,8 @@ static ssize_t fat_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	ret = blockdev_direct_IO(iocb, inode, iter, fat_get_block);
 	if (ret < 0 && iov_iter_rw(iter) == WRITE)
 		fat_write_failed(mapping, offset + count);
+	if (iov_iter_rw(iter) == WRITE)
+		appendfat_reservation_reconcile(inode);
 
 	return ret;
 }
@@ -687,6 +969,7 @@ static void fat_free_eofblocks(struct inode *inode)
 
 static void fat_evict_inode(struct inode *inode)
 {
+	WARN_ON_ONCE(MSDOS_I(inode)->reservation_owner);
 	truncate_inode_pages_final(&inode->i_data);
 	if (!inode->i_nlink) {
 		inode->i_size = 0;
@@ -771,6 +1054,9 @@ static void fat_put_super(struct super_block *sb)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 
+	WARN_ON_ONCE(sbi->reservation_inode_count ||
+		    !list_empty(&sbi->reservation_inodes));
+
 	fat_set_state(sb, 0, 0);
 
 	iput(sbi->fsinfo_inode);
@@ -798,6 +1084,10 @@ static struct inode *fat_alloc_inode(struct super_block *sb)
 	ei->i_crtime.tv_sec = 0;
 	ei->i_crtime.tv_nsec = 0;
 	mmb_init(&ei->i_metadata_bhs, &ei->vfs_inode.i_data);
+	INIT_LIST_HEAD(&ei->reservation_node);
+	ei->reservation_capacity = 0;
+	ei->reservation_owner = false;
+	ei->allocation_verified = false;
 
 	return &ei->vfs_inode;
 }
@@ -854,10 +1144,14 @@ int appendfat_reconfigure(struct fs_context *fc)
 	/* make sure we update state on remount. */
 	new_rdonly = fc->sb_flags & SB_RDONLY;
 	if (new_rdonly != sb_rdonly(sb)) {
-		if (new_rdonly)
+		if (new_rdonly) {
+			/* Release while metadata writes are still permitted. */
+			appendfat_release_all_reservations(sb);
+			sync_filesystem(sb);
 			fat_set_state(sb, 0, 0);
-		else
+		} else {
 			fat_set_state(sb, 1, 1);
+		}
 	}
 	return 0;
 }
@@ -1602,6 +1896,9 @@ int appendfat_fill_super(struct super_block *sb, struct fs_context *fc,
 	 */
 	sb->s_time_gran = 1;
 	mutex_init(&sbi->nfs_build_inode_lock);
+	mutex_init(&sbi->reservation_lock);
+	INIT_LIST_HEAD(&sbi->reservation_inodes);
+	sbi->reservation_inode_count = 0;
 	ratelimit_state_init(&sbi->ratelimit, DEFAULT_RATELIMIT_INTERVAL,
 			     DEFAULT_RATELIMIT_BURST);
 

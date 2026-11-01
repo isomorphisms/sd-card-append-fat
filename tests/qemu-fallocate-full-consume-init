@@ -17,20 +17,21 @@ mount -t appendfat /dev/vda /mnt/card
 /bin/fallocate-keep-size blocks /mnt/card/empty-reserved.bin 64
 /bin/fallocate-keep-size append /mnt/card/reserved.bin 196602 67
 /bin/fallocate-keep-size check /mnt/card/reserved.bin 262144 prefix 67
-/bin/fallocate-keep-size blocks /mnt/card/reserved.bin 512
+# Automatic reserve-ahead may leave bounded speculative capacity while these
+# inodes remain live.  Visible size/content are the keep-size compatibility
+# contract here; exact live allocation belongs to the reserve-ahead gate.
 /bin/fallocate-keep-size append /mnt/card/empty-reserved.bin 98304 68
 /bin/fallocate-keep-size check /mnt/card/empty-reserved.bin 131072 - 68
-/bin/fallocate-keep-size blocks /mnt/card/empty-reserved.bin 256
 sync
 umount /mnt/card
 
 mount -t vfat /dev/vda /mnt/card
 /bin/fallocate-keep-size check /mnt/card/reserved.bin 262144 prefix 67
 /bin/fallocate-keep-size check /mnt/card/empty-reserved.bin 131072 - 68
-/bin/fallocate-keep-size blocks /mnt/card/reserved.bin 512
-/bin/fallocate-keep-size blocks /mnt/card/empty-reserved.bin 256
+/bin/fallocate-keep-size minimal-blocks /mnt/card/reserved.bin
+/bin/fallocate-keep-size minimal-blocks /mnt/card/empty-reserved.bin
 sync
 umount /mnt/card
 
-echo APPENDFAT_KEEP_SIZE_FULL_CONSUME_PASS
+/bin/fallocate-keep-size kernel-marker APPENDFAT_KEEP_SIZE_FULL_CONSUME_PASS
 poweroff -f

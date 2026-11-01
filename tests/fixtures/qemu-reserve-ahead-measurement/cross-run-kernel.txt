@@ -1,0 +1,5 @@
+[    2.000000] APPENDFAT_MEASURE_BEGIN run_id=ahead-other variant=ahead policy_clusters=4
+[    2.001000] APPENDFAT_APPEND_METRIC reserve_start requested_clusters=4 allocated_clusters=0
+[    2.001100] APPENDFAT_ALLOC_METRIC alloc requested=4 allocated=4 fat_updates=7 fat_buffers=1 mirror_buffers=1 fsinfo_dirty_calls=1 result=0
+[    2.001200] APPENDFAT_ALLOC_METRIC attach clusters=4 tail_link=0 fat_buffers=0 mirror_buffers=0
+[    2.001300] APPENDFAT_MEASURE_END run_id=ahead-other

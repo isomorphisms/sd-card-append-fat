@@ -81,6 +81,13 @@ struct msdos_sb_info {
 	struct mutex fat_lock;
 	struct mutex nfs_build_inode_lock;
 	struct mutex s_lock;
+	/*
+	 * Mount-session-only reservations.  Each listed inode owns one reference
+	 * while it has allocation beyond EOF; no state is stored on disk.
+	 */
+	struct mutex reservation_lock;
+	struct list_head reservation_inodes;
+	unsigned int reservation_inode_count;
 	unsigned int prev_free;      /* previously allocated cluster number */
 	unsigned int free_clusters;  /* -1 if undefined */
 	unsigned int free_clus_valid; /* is free_clusters valid? */
@@ -133,6 +140,10 @@ struct msdos_inode_info {
 	struct rw_semaphore truncate_lock; /* protect bmap against truncate */
 	struct timespec64 i_crtime;	/* File creation (birth) time */
 	struct mapping_metadata_bhs i_metadata_bhs;
+	struct list_head reservation_node;
+	loff_t reservation_capacity;
+	bool reservation_owner;
+	bool allocation_verified;
 #ifdef APPENDFAT_ALLOC_METRICS
 	bool alloc_metrics;
 #endif
@@ -409,7 +420,7 @@ extern const struct file_operations appendfat_file_operations;
 extern const struct inode_operations appendfat_file_inode_operations;
 extern int appendfat_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		       struct iattr *attr);
-extern void appendfat_truncate_blocks(struct inode *inode, loff_t offset);
+extern int appendfat_truncate_blocks(struct inode *inode, loff_t offset);
 extern int appendfat_getattr(struct mnt_idmap *idmap,
 		       const struct path *path, struct kstat *stat,
 		       u32 request_mask, unsigned int flags);
@@ -444,6 +455,10 @@ static inline unsigned long fat_dir_hash(int logstart)
 	return hash_32(logstart, FAT_HASH_BITS);
 }
 extern int appendfat_add_cluster(struct inode *inode);
+extern int appendfat_add_clusters(struct inode *inode, int nr_cluster);
+extern void appendfat_reservation_reconcile(struct inode *inode);
+extern void appendfat_reservation_release(struct inode *inode);
+extern void appendfat_kill_sb(struct super_block *sb);
 
 /* fat/misc.c */
 extern __printf(3, 4) __cold

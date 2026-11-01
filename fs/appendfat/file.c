@@ -265,7 +265,6 @@ static long fat_fallocate(struct file *file, int mode,
 {
 	int nr_cluster; /* Number of clusters to be allocated */
 	int batch;
-	int clusters[MAX_BUF_PER_PAGE / 2];
 #ifdef APPENDFAT_ALLOC_METRICS
 	bool metric_enabled = false;
 #endif
@@ -307,8 +306,8 @@ static long fat_fallocate(struct file *file, int mode,
 
 		/* Start the allocation. We are not zeroing out the clusters. */
 		while (nr_cluster > 0) {
-			batch = min_t(int, nr_cluster, ARRAY_SIZE(clusters));
-			err = appendfat_alloc_clusters(inode, clusters, batch);
+			batch = min_t(int, nr_cluster, MAX_BUF_PER_PAGE / 2);
+			err = appendfat_add_clusters(inode, batch);
 			if (err == -ENOSPC) {
 				/*
 				 * Preserve the old partial-allocation result on ENOSPC.
@@ -327,11 +326,6 @@ static long fat_fallocate(struct file *file, int mode,
 			if (err)
 				goto error;
 
-			err = appendfat_chain_add(inode, clusters[0], batch);
-			if (err) {
-				appendfat_free_clusters(inode, clusters[0]);
-				goto error;
-			}
 			nr_cluster -= batch;
 		}
 	} else {
@@ -426,11 +420,11 @@ static int fat_free(struct inode *inode, int skip)
 	return appendfat_free_clusters(inode, free_start);
 }
 
-void appendfat_truncate_blocks(struct inode *inode, loff_t offset)
+int appendfat_truncate_blocks(struct inode *inode, loff_t offset)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
 	const unsigned int cluster_size = sbi->cluster_size;
-	int nr_clusters;
+	int nr_clusters, err;
 
 	/*
 	 * This protects against truncating a file bigger than it was then
@@ -441,8 +435,10 @@ void appendfat_truncate_blocks(struct inode *inode, loff_t offset)
 
 	nr_clusters = (offset + (cluster_size - 1)) >> sbi->cluster_bits;
 
-	fat_free(inode, nr_clusters);
-	appendfat_flush_inodes(inode->i_sb, inode, NULL);
+	err = fat_free(inode, nr_clusters);
+	if (err)
+		return err;
+	return appendfat_flush_inodes(inode->i_sb, inode, NULL);
 }
 
 int appendfat_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
@@ -634,6 +630,7 @@ int appendfat_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		truncate_setsize(inode, attr->ia_size);
 		appendfat_truncate_blocks(inode, attr->ia_size);
 		up_write(&MSDOS_I(inode)->truncate_lock);
+		appendfat_reservation_reconcile(inode);
 	}
 
 	/*
